@@ -1,0 +1,18 @@
+{
+  "name": "OtakuVerse — Anime Stream Engine",
+  "short_name": "OtakuVerse",
+  "description": "Ad-free Anime Streaming with Indonesian, English & Multi-Language Repositories",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#05070b",
+  "theme_color": "#05070b",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "./icon.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

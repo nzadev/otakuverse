@@ -1,0 +1,690 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover">
+  <meta name="theme-color" content="#090a0f">
+  <meta name="description" content="OTAKUVERSE — Aniyomi Web Edition. Platform streaming anime bebas iklan dengan ekstensi scraper Keiyoushi (Samehadaku, Otakudesu, Kuramanime).">
+  <meta name="referrer" content="no-referrer">
+  
+  <title>OTAKUVERSE — Aniyomi Web Edition</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+  <link rel="stylesheet" href="styles.css?v=3.0">
+  <link rel="manifest" href="manifest.json">
+</head>
+<body>
+  <div class="ambient-glow glow-top" aria-hidden="true"></div>
+  <div class="ambient-glow glow-bottom" aria-hidden="true"></div>
+
+  <!-- MAIN ANIYOMI SHELL -->
+  <div class="aniyomi-shell">
+    
+    <!-- DESKTOP SIDEBAR NAVIGATION -->
+    <aside class="aniyomi-sidebar">
+      <div class="sidebar-brand">
+        <div class="brand-badge-icon">オ</div>
+        <div class="brand-text-wrap">
+          <span class="brand-name">OTAKU<span class="accent-text">VERSE</span></span>
+          <span class="brand-edition">ANIYOMI WEB</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button type="button" class="nav-item active" data-tab="anime">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+            <polyline points="17 2 12 7 7 2"></polyline>
+          </svg>
+          <span class="nav-label">Anime</span>
+        </button>
+
+        <button type="button" class="nav-item" data-tab="library">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+          </svg>
+          <span class="nav-label">Library</span>
+          <span class="sidebar-badge" id="sidebarLibraryCount">0</span>
+        </button>
+
+        <button type="button" class="nav-item" data-tab="extensions">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+            <polyline points="14 2 14 8 20 8"></polyline>
+            <line x1="16" y1="13" x2="8" y2="13"></line>
+            <line x1="16" y1="17" x2="8" y2="17"></line>
+            <polyline points="10 9 9 9 8 9"></polyline>
+          </svg>
+          <span class="nav-label">Ekstensi</span>
+          <span class="sidebar-status-dot online" title="Repo Keiyoushi Aktif"></span>
+        </button>
+
+        <button type="button" class="nav-item" data-tab="settings">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+          <span class="nav-label">Pengaturan</span>
+        </button>
+      </nav>
+
+      <!-- Sidebar Footer Info -->
+      <div class="sidebar-footer">
+        <div class="active-source-chip" id="sidebarActiveSource">
+          <span class="source-dot">●</span>
+          <span class="source-text">Samehadaku (ID)</span>
+        </div>
+        <div class="sidebar-shortcut-hint">
+          <kbd>/</kbd> Cari &bull; <kbd>Space</kbd> Play
+        </div>
+      </div>
+    </aside>
+
+    <!-- MOBILE & WAYDROID BOTTOM NAVIGATION BAR -->
+    <nav class="aniyomi-bottom-nav">
+      <button type="button" class="bottom-nav-item active" data-tab="anime">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect>
+          <polyline points="17 2 12 7 7 2"></polyline>
+        </svg>
+        <span>Anime</span>
+      </button>
+
+      <button type="button" class="bottom-nav-item" data-tab="library">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+        </svg>
+        <span>Library</span>
+        <span class="bottom-badge" id="bottomLibraryCount">0</span>
+      </button>
+
+      <button type="button" class="bottom-nav-item" data-tab="extensions">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+          <polyline points="14 2 14 8 20 8"></polyline>
+        </svg>
+        <span>Ekstensi</span>
+      </button>
+
+      <button type="button" class="bottom-nav-item" data-tab="settings">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <circle cx="12" cy="12" r="3"></circle>
+          <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+        </svg>
+        <span>Pengaturan</span>
+      </button>
+    </nav>
+
+    <!-- MAIN VIEW CONTAINER -->
+    <main class="aniyomi-main">
+      
+      <!-- TOP APP BAR -->
+      <header class="aniyomi-top-bar">
+        <div class="top-bar-left">
+          <div class="view-header-title" id="viewHeaderTitle">📺 Katalog Anime</div>
+        </div>
+
+        <div class="top-bar-center">
+          <div class="search-input-box">
+            <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="globalSearchInput" placeholder="Cari judul anime, studio, genre..." autocomplete="off">
+            <kbd class="search-kbd">Ctrl K</kbd>
+          </div>
+        </div>
+
+        <div class="top-bar-right">
+          <!-- Source / Ext Scraper Selector -->
+          <div class="source-selector-pill">
+            <span class="source-icon">📡</span>
+            <select id="sourceSelectDropdown" aria-label="Pilih Sumber Anime">
+              <option value="samehadaku" selected>Samehadaku (ID)</option>
+              <option value="otakudesu">Otakudesu (ID)</option>
+              <option value="kuramanime">Kuramanime (ID)</option>
+              <option value="hianime">HiAnime (EN)</option>
+              <option value="gogoanime">GogoAnime (EN)</option>
+              <option value="all">Semua Sumber (Unified)</option>
+            </select>
+          </div>
+        </div>
+      </header>
+
+      <!-- TAB 1: ANIME (BROWSE / CATALOG) -->
+      <section class="tab-view active" id="viewAnime">
+        
+        <!-- Hero Spotlight / Featured Anime -->
+        <div class="hero-spotlight" id="heroSpotlight">
+          <div class="hero-backdrop" id="heroBackdrop"></div>
+          <div class="hero-overlay"></div>
+          
+          <div class="hero-content">
+            <div class="hero-tag-row">
+              <span class="pill-badge pill-fire" id="heroBadge">🔥 Trending Musim Ini</span>
+              <span class="pill-badge pill-repo" id="heroRepoTag">🇮🇩 Samehadaku Mirror</span>
+              <span class="pill-badge pill-score" id="heroScore">★ 8.95</span>
+            </div>
+
+            <h1 class="hero-title" id="heroTitle">Solo Leveling</h1>
+            <p class="hero-native-title" id="heroNativeTitle">俺だけレベルアップな件 • A-1 Pictures (Fall 2026)</p>
+            <p class="hero-synopsis" id="heroSynopsis">
+              Dunia diguncang kemunculan dungeon misterius. Sung Jin-woo, pemburu terlemah berperingkat E, terjebak di ruang bawah tanah ganda dan menerima quest rahasia untuk menaikkan level tanpa batas.
+            </p>
+
+            <div class="hero-cta-group">
+              <button type="button" class="cta-btn primary-cta" id="btnHeroPlay">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span>Nonton Episode 1</span>
+              </button>
+              <button type="button" class="cta-btn secondary-cta" id="btnHeroDetail">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                  <circle cx="12" cy="12" r="10"></circle>
+                  <line x1="12" y1="16" x2="12" y2="12"></line>
+                  <line x1="12" y1="8" x2="12.01" y2="8"></line>
+                </svg>
+                <span>Detail Anime</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter & Sorting Bar -->
+        <div class="catalog-filter-bar">
+          <!-- Sort Selector -->
+          <div class="filter-group-wrap">
+            <div class="sort-tabs" id="sortFilterGroup">
+              <button type="button" class="filter-tab active" data-sort="trending">🔥 Trending</button>
+              <button type="button" class="filter-tab" data-sort="latest">⚡ Rilis Terbaru (Fall 2026)</button>
+              <button type="button" class="filter-tab" data-sort="popular">👑 Populer</button>
+              <button type="button" class="filter-tab" data-sort="score">⭐ Top Rating</button>
+            </div>
+
+            <!-- Status Tabs -->
+            <div class="status-tabs" id="statusFilterGroup">
+              <button type="button" class="filter-tab active" data-status="All">Semua</button>
+              <button type="button" class="filter-tab" data-status="Ongoing">Ongoing</button>
+              <button type="button" class="filter-tab" data-status="Completed">Tamat</button>
+            </div>
+          </div>
+
+          <!-- Genre Carousel -->
+          <div class="genre-pills" id="genrePillsList">
+            <button type="button" class="genre-pill active" data-genre="All">Semua Genre</button>
+            <button type="button" class="genre-pill" data-genre="Action">Action</button>
+            <button type="button" class="genre-pill" data-genre="Fantasy">Fantasy</button>
+            <button type="button" class="genre-pill" data-genre="Supernatural">Supernatural</button>
+            <button type="button" class="genre-pill" data-genre="Adventure">Adventure</button>
+            <button type="button" class="genre-pill" data-genre="Drama">Drama</button>
+            <button type="button" class="genre-pill" data-genre="Sci-Fi">Sci-Fi</button>
+            <button type="button" class="genre-pill" data-genre="Comedy">Comedy</button>
+          </div>
+        </div>
+
+        <!-- Anime Grid Header -->
+        <div class="catalog-meta-header">
+          <div class="catalog-heading-wrap">
+            <h2 class="section-title">Koleksi Serial Anime</h2>
+            <span class="count-badge" id="catalogCountBadge">30 Judul</span>
+          </div>
+          <div class="ad-free-badge">
+            <span class="shield-icon">🛡️</span>
+            <span>100% Bebas Iklan &amp; Direct Scraper</span>
+          </div>
+        </div>
+
+        <!-- Anime Cards Grid -->
+        <div class="anime-grid" id="animeGrid">
+          <!-- Rendered dynamically -->
+        </div>
+
+        <!-- Load More Pagination -->
+        <div class="load-more-wrap" id="loadMoreWrap">
+          <button type="button" class="cta-btn secondary-cta" id="btnLoadMore">
+            <span id="loadMoreText">Muat 30 Anime Lainnya ⬇</span>
+            <span class="load-more-spinner hidden" id="loadMoreSpinner">⏳</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- TAB 2: LIBRARY (ANIYOMI WATCHLIST) -->
+      <section class="tab-view" id="viewLibrary">
+        <div class="library-header">
+          <div class="library-title-group">
+            <h2 class="section-title">📚 Koleksi Saya (Library)</h2>
+            <p class="section-subtitle">Tersimpan secara lokal di browser &bull; Sinkronisasi AniList</p>
+          </div>
+
+          <!-- Aniyomi Library Category Tabs -->
+          <div class="library-filter-tabs">
+            <button type="button" class="lib-tab active" data-category="all">Semua (<span id="libCountAll">0</span>)</button>
+            <button type="button" class="lib-tab" data-category="watching">Sedang Ditonton (<span id="libCountWatching">0</span>)</button>
+            <button type="button" class="lib-tab" data-category="plan">Rencana Nonton (<span id="libCountPlan">0</span>)</button>
+            <button type="button" class="lib-tab" data-category="completed">Selesai (<span id="libCountCompleted">0</span>)</button>
+            <button type="button" class="lib-tab" data-category="dropped">Dihentikan (<span id="libCountDropped">0</span>)</button>
+          </div>
+        </div>
+
+        <div class="library-grid" id="libraryGrid">
+          <!-- Rendered dynamically -->
+        </div>
+      </section>
+
+      <!-- TAB 3: EXTENSIONS & SOURCES (KEIYOUSHI REPOSITORY) -->
+      <section class="tab-view" id="viewExtensions">
+        <div class="extensions-header">
+          <div class="ext-title-group">
+            <h2 class="section-title">🧩 Ekstensi &amp; Sumber Scraper</h2>
+            <p class="section-subtitle">Arsitektur plugin scraper modular berbasis Keiyoushi FOSS</p>
+          </div>
+
+          <div class="repo-info-card">
+            <div class="repo-card-left">
+              <span class="repo-globe-icon">🌐</span>
+              <div class="repo-url-details">
+                <span class="repo-tag">Repository Resmi Keiyoushi</span>
+                <code class="repo-url-text">https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json</code>
+              </div>
+            </div>
+            <button type="button" class="cta-btn secondary-cta" id="btnCheckExtUpdates">
+              <span>🔄 Periksa Pembaruan</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="extensions-list" id="extensionsList">
+          <!-- Rendered dynamically -->
+        </div>
+      </section>
+
+      <!-- TAB 4: SETTINGS (ANIYOMI PREFERENCES) -->
+      <section class="tab-view" id="viewSettings">
+        <div class="settings-header">
+          <h2 class="section-title">⚙️ Pengaturan &amp; Preferensi</h2>
+          <p class="section-subtitle">Konfigurasi pemutar video, decoder, pelacak, dan penyimpanan</p>
+        </div>
+
+        <div class="settings-grid">
+          <!-- Player Preferences Card -->
+          <div class="settings-card">
+            <h3 class="card-heading">🎬 Pemutar Video (Aniyomi Engine)</h3>
+            
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-title">Durasi Lewati Intro (Skip Intro)</span>
+                <span class="setting-desc">Waktu lompat intro otomatis per episode</span>
+              </div>
+              <div class="setting-control">
+                <input type="number" id="settingSkipIntroTime" value="85" min="10" max="180" class="num-input">
+                <span class="unit-text">detik</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-title">Kualitas Default</span>
+                <span class="setting-desc">Resolusi target otomatis saat mulai streaming</span>
+              </div>
+              <div class="setting-control">
+                <select id="settingDefaultQuality" class="setting-select">
+                  <option value="1080">1080p FHD</option>
+                  <option value="720" selected>720p HD (Optimal)</option>
+                  <option value="480">480p SD</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-title">Otomatis Putar Episode Berikutnya</span>
+                <span class="setting-desc">Lanjut ke episode selanjutnya saat episode saat ini selesai</span>
+              </div>
+              <div class="setting-control">
+                <label class="switch">
+                  <input type="checkbox" id="settingAutoNext" checked>
+                  <span class="slider round"></span>
+                </label>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-title">Decoder Video</span>
+                <span class="setting-desc">Metode decoding pemutar HTML5</span>
+              </div>
+              <div class="setting-badge-info">
+                <span class="code-chip">Hardware Acceleration (HTTP 206)</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Tracking Sync Card -->
+          <div class="settings-card">
+            <h3 class="card-heading">📊 Pelacak &amp; Sinkronisasi (Tracking)</h3>
+            
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-title">AniList Sync</span>
+                <span class="setting-desc">Sinkronisasi status episode &amp; data rilis musim Fall 2026</span>
+              </div>
+              <div class="setting-badge-info">
+                <span class="status-pill connected">● Terhubung (GraphQL API)</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-title">MyAnimeList Tracker</span>
+                <span class="setting-desc">Integrasi database alternatif MAL</span>
+              </div>
+              <div class="setting-badge-info">
+                <span class="status-pill idle">Siap Digunakan</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Storage & Cache Card -->
+          <div class="settings-card">
+            <h3 class="card-heading">💾 Penyimpanan &amp; Cache Lokal</h3>
+            
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-title">Cache Video &amp; Gambar</span>
+                <span class="setting-desc">Total berkas video &amp; cover lokal di sistem</span>
+              </div>
+              <div class="setting-badge-info">
+                <span class="code-chip" id="settingCacheSize">~73 MB (HD Anime Streams)</span>
+              </div>
+            </div>
+
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-title">Bersihkan Cache &amp; Riwayat</span>
+                <span class="setting-desc">Hapus cache API lokal di memori browser</span>
+              </div>
+              <button type="button" class="cta-btn secondary-cta" id="btnClearCache">
+                <span>🗑️ Bersihkan Cache</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- About Card -->
+          <div class="settings-card">
+            <h3 class="card-heading">ℹ️ Tentang OTAKUVERSE</h3>
+            <p class="about-text">
+              <strong>OTAKUVERSE v3.0 (Aniyomi Web Edition)</strong> adalah platform web anime open-source yang mereplikasi penuh arsitektur dan pengalaman Aniyomi/Tachiyomi.
+            </p>
+            <p class="about-sub">
+              Dibuat untuk ekosistem Linux (Waydroid &amp; Native Host Browser) dengan prinsip 100% bebas iklan, zero malware, dan arsitektur scraper modular Keiyoushi.
+            </p>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- ======================================================================
+       ANIYOMI ANIME DETAIL SCREEN (Full detail sheet)
+       ====================================================================== -->
+  <div class="anime-detail-modal" id="animeDetailsView" aria-hidden="true">
+    <div class="detail-backdrop-wrap">
+      <div class="detail-backdrop-image" id="detailBackdrop"></div>
+      <div class="detail-backdrop-scrim"></div>
+      
+      <button type="button" class="btn-detail-back" id="btnDetailBack" title="Kembali ke Katalog">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+          <line x1="19" y1="12" x2="5" y2="12"></line>
+          <polyline points="12 19 5 12 12 5"></polyline>
+        </svg>
+        <span>Kembali</span>
+      </button>
+    </div>
+
+    <div class="detail-content-container">
+      <div class="detail-header-row">
+        <div class="detail-poster-wrap">
+          <img src="" alt="Poster Anime" class="detail-poster" id="detailPoster" referrerpolicy="no-referrer" onerror="this.onerror=null; this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80'">
+          <span class="detail-score-chip" id="detailScore">★ 8.9</span>
+        </div>
+
+        <div class="detail-meta-column">
+          <div class="detail-source-badge" id="detailSourceBadge">Samehadaku (ID)</div>
+          <h1 class="detail-title" id="detailTitle">Anime Title</h1>
+          <div class="detail-native-title" id="detailNativeTitle">Native Title &bull; Studio</div>
+          
+          <div class="detail-info-chips">
+            <span class="info-chip" id="detailStatus">Ongoing</span>
+            <span class="info-chip" id="detailSeasonYear">Fall 2026</span>
+            <span class="info-chip" id="detailTotalEps">24 Episode</span>
+            <span class="info-chip" id="detailType">TV Series</span>
+          </div>
+
+          <!-- Aniyomi Action Bar -->
+          <div class="detail-actions-bar">
+            <button type="button" class="cta-btn primary-cta" id="btnDetailStartWatching">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              <span>Nonton Episode 1</span>
+            </button>
+
+            <button type="button" class="cta-btn secondary-cta" id="btnDetailLibraryToggle">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"></path>
+              </svg>
+              <span id="detailLibraryText">Tambah ke Library</span>
+            </button>
+
+            <a href="#" target="_blank" rel="noopener noreferrer" class="cta-btn icon-btn" id="btnDetailAniList" title="Buka di AniList">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+                <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-1 14.5v-9l6 4.5-6 4.5z"/>
+              </svg>
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <!-- Synopsis -->
+      <div class="detail-synopsis-section">
+        <h3 class="detail-section-heading">Sinopsis</h3>
+        <p class="detail-synopsis-text" id="detailSynopsis"></p>
+        
+        <div class="detail-genre-chips" id="detailGenreChips">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+
+      <!-- Aniyomi Episode List -->
+      <div class="detail-episodes-section">
+        <div class="episodes-header-row">
+          <div class="episodes-count-title">
+            <h3 class="detail-section-heading">Daftar Episode</h3>
+            <span class="episodes-badge-count" id="detailEpisodesCount">24 Episode</span>
+          </div>
+          
+          <div class="episodes-sort-filter">
+            <button type="button" class="episodes-sort-btn" id="btnSortEpisodes" title="Balik Urutan">
+              <span id="sortEpisodesLabel">Urutan: 1 ➔ N</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="episodes-grid-list" id="detailEpisodesGrid">
+          <!-- Rendered dynamically -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ======================================================================
+       ANIYOMI CINEMA VIDEO PLAYER (MPV HUD Experience)
+       ====================================================================== -->
+  <div class="player-modal-backdrop" id="playerModal" aria-hidden="true">
+    <div class="player-modal-window">
+      
+      <!-- Video Container -->
+      <div class="video-container" id="videoContainer">
+        <!-- Native Video Element -->
+        <video id="mainVideoPlayer" preload="auto" playsinline></video>
+        <iframe id="trailerPlayerIframe" class="trailer-iframe hidden" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
+        <!-- Aniyomi MPV Player HUD Overlay -->
+        <div class="aniyomi-player-hud" id="playerHud">
+          
+          <!-- Top HUD Bar -->
+          <div class="hud-top-bar">
+            <div class="hud-top-left">
+              <button type="button" class="btn-hud-back" id="btnClosePlayer" title="Kembali (Esc)">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2.5">
+                  <line x1="19" y1="12" x2="5" y2="12"></line>
+                  <polyline points="12 19 5 12 12 5"></polyline>
+                </svg>
+              </button>
+              <div class="hud-meta-titles">
+                <span class="hud-anime-title" id="playerModalTitle">Solo Leveling</span>
+                <span class="hud-ep-title" id="playerModalEp">Episode 1</span>
+              </div>
+            </div>
+
+            <div class="hud-top-right">
+              <!-- Server Switcher -->
+              <div class="hud-select-wrap">
+                <span class="hud-label">Server:</span>
+                <select id="serverSelect" class="hud-select" aria-label="Pilih Server Video">
+                  <option value="direct" selected>⚡ OtakuVerse HD CDN (Direct)</option>
+                  <option value="samehadaku">🇮🇩 Samehadaku Mirror</option>
+                  <option value="otakudesu">🌸 Otakudesu Fast</option>
+                  <option value="trailer">🎬 Trailer Resmi (YT)</option>
+                </select>
+              </div>
+
+              <!-- Quality Switcher -->
+              <div class="hud-select-wrap">
+                <span class="hud-label">Kualitas:</span>
+                <select id="qualitySelect" class="hud-select" aria-label="Pilih Kualitas Video">
+                  <option value="1080">1080p FHD</option>
+                  <option value="720" selected>720p HD</option>
+                  <option value="480">480p SD</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <!-- Center Touch Actions & Big Play Button -->
+          <div class="hud-center-area">
+            <button type="button" class="hud-step-btn" id="btnRewind10" title="Mundur 10 Detik (J / ←)">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M1 4v6h6"></path>
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
+              </svg>
+              <span class="step-num">10</span>
+            </button>
+
+            <button type="button" class="center-play-button" id="centerPlayButton" title="Play/Pause (Space)">
+              <svg id="centerPlayIcon" viewBox="0 0 24 24" width="46" height="46" fill="currentColor">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+            </button>
+
+            <button type="button" class="hud-step-btn" id="btnForward10" title="Maju 10 Detik (L / →)">
+              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M23 4v6h-6"></path>
+                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+              </svg>
+              <span class="step-num">10</span>
+            </button>
+          </div>
+
+          <!-- Floating Skip Intro Chip (Aniyomi signature!) -->
+          <div class="floating-skip-wrap">
+            <button type="button" class="btn-skip-intro-chip" id="btnSkipIntro" title="Lompati Lagu Pembuka">
+              <span>⏩ Lewati Intro (+85s)</span>
+            </button>
+          </div>
+
+          <!-- Bottom HUD Bar -->
+          <div class="hud-bottom-bar">
+            <!-- Scrubber Timeline -->
+            <div class="hud-timeline-container" id="timelineContainer">
+              <div class="hud-timeline-buffer" id="timelineBuffer"></div>
+              <div class="hud-timeline-progress" id="timelineProgress"></div>
+              <input type="range" id="timelineSlider" min="0" max="100" value="0" step="0.1" class="hud-timeline-slider">
+            </div>
+
+            <!-- Bottom Controls Row -->
+            <div class="hud-controls-row">
+              <div class="hud-controls-left">
+                <!-- Play/Pause -->
+                <button type="button" class="hud-btn" id="btnPlayPause" title="Play/Pause (Space)">
+                  <svg id="iconPlay" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                  </svg>
+                  <svg id="iconPause" class="hidden" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                  </svg>
+                </button>
+
+                <!-- Next Episode Button (Aniyomi feature) -->
+                <button type="button" class="hud-btn" id="btnNextEpisode" title="Episode Selanjutnya">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <polygon points="5 4 15 12 5 20 5 4"></polygon>
+                    <line x1="19" y1="5" x2="19" y2="19" stroke="currentColor" stroke-width="2"></line>
+                  </svg>
+                </button>
+
+                <!-- Time display -->
+                <div class="hud-time-display">
+                  <span id="currentTimeText">00:00</span>
+                  <span class="hud-time-divider">/</span>
+                  <span id="durationTimeText">00:00</span>
+                </div>
+              </div>
+
+              <div class="hud-controls-right">
+                <!-- Volume / Mute -->
+                <div class="hud-volume-wrap">
+                  <button type="button" class="hud-btn" id="btnMute" title="Mute/Unmute">
+                    <span id="volumeIcon">🔊</span>
+                  </button>
+                  <input type="range" id="volumeSlider" min="0" max="1" step="0.05" value="1" class="hud-volume-slider">
+                </div>
+
+                <!-- Speed Cycle -->
+                <button type="button" class="hud-btn" id="btnPlaybackSpeed" title="Kecepatan Putar">
+                  <span id="speedText">1.0x</span>
+                </button>
+
+                <!-- Aspect Ratio Toggle -->
+                <button type="button" class="hud-btn" id="btnAspectRatio" title="Rasio Layar (Fit / 16:9 / Fill)">
+                  <span>16:9</span>
+                </button>
+
+                <!-- Fullscreen -->
+                <button type="button" class="hud-btn" id="btnFullscreen" title="Layar Penuh (F)">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Toast Notification -->
+  <div class="toast-notification" id="toastNotice" role="alert"></div>
+
+  <script src="app.js?v=3.0"></script>
+</body>
+</html>

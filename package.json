@@ -1,0 +1,23 @@
+{
+  "name": "otakuverse",
+  "version": "3.0.0",
+  "private": true,
+  "description": "OTAKUVERSE — Aniyomi Web Edition. Ad-free anime streaming with multi-source scraper & cinema player.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "anime",
+    "streaming",
+    "ad-free",
+    "weeb",
+    "aniyomi-web"
+  ],
+  "author": "NzaDev",
+  "license": "MIT",
+  "dependencies": {
+    "@consumet/extensions": "^1.8.8"
+  }
+}
