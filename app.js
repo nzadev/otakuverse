@@ -117,6 +117,7 @@ const DOM = {
   detailSeasonYear: document.getElementById('detailSeasonYear'),
   detailTotalEps: document.getElementById('detailTotalEps'),
   detailType: document.getElementById('detailType'),
+  detailSchedule: document.getElementById('detailSchedule'),
   btnDetailStartWatching: document.getElementById('btnDetailStartWatching'),
   btnDetailLibraryToggle: document.getElementById('btnDetailLibraryToggle'),
   detailLibraryText: document.getElementById('detailLibraryText'),
@@ -733,9 +734,20 @@ function openAnimeDetails(anime) {
   
   DOM.detailStatus.textContent = anime.status === 'RELEASING' ? 'Sedang Tayang' : 'Tamat';
   DOM.detailSeasonYear.textContent = `${anime.season || 'Fall'} ${anime.year || '2026'}`;
-  const totalEps = anime.episodes_count || (anime.episodes ? anime.episodes.length : 24);
+  const totalEps = anime.episodes_count || (anime.episodes ? anime.episodes.length : '?');
   DOM.detailTotalEps.textContent = `${totalEps} Episode`;
   DOM.detailType.textContent = anime.type || 'TV Series';
+  
+  if (anime.nextAiringEpisode && anime.nextAiringEpisode.airingAt) {
+    const airDate = new Date(anime.nextAiringEpisode.airingAt * 1000);
+    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+    const dayName = days[airDate.getDay()];
+    const timeStr = airDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+    DOM.detailSchedule.textContent = `📅 Eps ${anime.nextAiringEpisode.episode}: ${dayName}, ${timeStr} WIB`;
+    DOM.detailSchedule.style.display = 'inline-flex';
+  } else {
+    DOM.detailSchedule.style.display = 'none';
+  }
 
   DOM.detailSynopsis.textContent = anime.synopsis || 'Tidak ada sinopsis tersedia untuk anime ini.';
 

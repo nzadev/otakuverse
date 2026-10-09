@@ -164,6 +164,15 @@ function transformMedia(item) {
   let trailerId = (item.trailer?.site === 'youtube') ? item.trailer.id : null;
   if (!trailerId && item.id === 21) trailerId = 'S8_YwFLCh4U'; // One Piece Egghead Arc Official Trailer
   if (!trailerId && item.id === 269) trailerId = 'e8YBesRKq_U'; // Bleach TYBW Official Trailer
+  
+  let nextAiring = null;
+  if (item.nextAiringEpisode) {
+    nextAiring = {
+      airingAt: item.nextAiringEpisode.airingAt,
+      timeUntilAiring: item.nextAiringEpisode.timeUntilAiring,
+      episode: item.nextAiringEpisode.episode
+    };
+  }
 
   // Generate episodes array
   const totalEp = Math.min(episodesCount, 150);
@@ -201,7 +210,8 @@ function transformMedia(item) {
     cover: cover,
     banner: banner,
     trailerId: trailerId,
-    episodes: episodes
+    episodes: episodes,
+    nextAiringEpisode: nextAiring
   };
 }
 
@@ -238,6 +248,11 @@ async function fetchFromAniList({ page = 1, perPage = 30, search = '', genre = '
           averageScore
           episodes
           status
+          nextAiringEpisode {
+            airingAt
+            timeUntilAiring
+            episode
+          }
           seasonYear
           season
           genres
@@ -329,6 +344,11 @@ async function fetchAnimeById(id) {
         averageScore
         episodes
         status
+        nextAiringEpisode {
+          airingAt
+          timeUntilAiring
+          episode
+        }
         seasonYear
         season
         genres
