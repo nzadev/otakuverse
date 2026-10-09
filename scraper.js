@@ -998,22 +998,27 @@ module.exports = {
 };
 
 async function getHanimeStreams(title, episode) {
-  // CATATAN: API Hanime bisa dilindungi Cloudflare, 
-  // Jika akses langsung dari Node backend gagal, 
-  // kita siapkan link external (direct search).
+  // CATATAN: API Hanime dan Nekopoi dijaga ketat oleh Cloudflare.
+  // Karena akses langsung dari Node backend diblokir, 
+  // kita siapkan pilihan link external (direct search) ke keduanya.
   
   const cleanTitle = title.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().replace(/\s+/g, '+');
-  const searchUrl = `https://hanime.tv/search?q=${cleanTitle}`;
+  const searchHanime = `https://hanime.tv/search?q=${cleanTitle}`;
+  const searchNekopoi = `https://nekopoi.care/search/${cleanTitle}`;
 
-  // Coba fetch dari Hanime API (Dummy for now due to Cloudflare block on Node.js)
-  // Kalau ada Puppeteer, kita bisa hit htv-services API.
-  
   return [
     {
-      server: 'Hanime (Direct Search)',
-      url: searchUrl, 
+      server: 'Kucing Peduli (Sub Indo)',
+      url: searchNekopoi, 
       type: 'external', 
-      quality: 'HD',
+      quality: '1080p',
+      isBlogger: false
+    },
+    {
+      server: 'Hanime (English/Raw)',
+      url: searchHanime, 
+      type: 'external', 
+      quality: '720p',
       isBlogger: false
     }
   ];
