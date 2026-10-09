@@ -993,5 +993,34 @@ module.exports = {
   searchOtakudesu,
   getOtakudesuAnimeEpisodes,
   getOtakudesuStreams,
-  resolveStreamByTitle
+  resolveStreamByTitle,
+  getKucingPeduliStreams
 };
+
+async function getKucingPeduliStreams(title, episode) {
+  // CATATAN: Nekopoi (Kucing Peduli) biasanya dilindungi oleh Cloudflare (Under Attack Mode).
+  // Request otomatis dari server NodeJS biasanya diblokir 403 Forbidden.
+  // Oleh karena itu, kita memberikan placeholder. Untuk implementasi real, 
+  // butuh bypasser seperti Puppeteer / FlareSolverr.
+  
+  const cleanTitle = title.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().replace(/\s+/g, '+');
+  const searchUrl = `https://nekopoi.care/?s=${cleanTitle}`;
+
+  // Simulasi stream dari Kucing Peduli
+  return [
+    {
+      server: 'Kucing Peduli (Cari & Buka)',
+      url: searchUrl, 
+      type: 'external', 
+      quality: 'HD',
+      isBlogger: false
+    },
+    {
+      server: 'Bypass Info',
+      url: '/media/sample.mp4', 
+      type: 'video',
+      quality: '720p',
+      isBlogger: false
+    }
+  ];
+}

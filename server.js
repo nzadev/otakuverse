@@ -445,10 +445,13 @@ const server = http.createServer(async (req, res) => {
     const title = requestUrl.searchParams.get('title') || '';
     const romaji = requestUrl.searchParams.get('romaji') || '';
     const episode = requestUrl.searchParams.get('episode') || '1';
+    const isAdult = requestUrl.searchParams.get('isAdult') === 'true';
     let streams = [];
 
     try {
-      if (targetUrl && source.includes('samehadaku')) {
+      if (isAdult) {
+        streams = await scraper.getKucingPeduliStreams(title || romaji, episode);
+      } else if (targetUrl && source.includes('samehadaku')) {
         streams = await scraper.getSamehadakuStreams(targetUrl);
       } else if (targetUrl && source.includes('otakudesu')) {
         streams = await scraper.getOtakudesuStreams(targetUrl);
@@ -456,7 +459,7 @@ const server = http.createServer(async (req, res) => {
 
       // Always resolve cross-source mirrors (Otakudesu + Samehadaku) to supply healthy Direct MP4 streams
       // even if targetUrl has dead/expired Mega links
-      if (title || romaji) {
+      if (!isAdult && (title || romaji)) {
         const resolvedStreams = await scraper.resolveStreamByTitle(title, episode, romaji, source);
         if (resolvedStreams && resolvedStreams.length > 0) {
           const seen = new Set(streams.map(s => s.url));

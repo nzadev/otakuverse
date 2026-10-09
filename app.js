@@ -1060,25 +1060,13 @@ async function openPlayer(anime, epIndex = 0) {
   showToast(`🔍 Mengambil video asli Episode ${currentEp.number} (1080p/720p)...`);
 
   const romajiName = anime.native_title || (anime.titles && anime.titles.romaji) || '';
-  
-  if (anime.isAdult || anime.genre === 'Hentai') {
-    DOM.serverSelect.innerHTML = `<option value="" disabled selected>⚠️ Server Publik Tidak Tersedia</option>`;
-    showToast('⚠️ Anime khusus 18+ tidak didukung oleh scraper publik (Otakudesu/Samehadaku). Memutar sampel video.', 5000);
-    // Load a sample or nothing
-    if (anime.trailer_url) {
-      loadIframeStream(anime.trailer_url, 'Trailer Resmi');
-    } else {
-      closePlayer();
-    }
-    return;
-  }
-
   const queryParams = new URLSearchParams({
     source: targetSource,
     url: targetUrl,
     title: anime.title || '',
     romaji: romajiName,
-    episode: currentEp.number || (epIndex + 1)
+    episode: currentEp.number || (epIndex + 1),
+    isAdult: anime.isAdult || anime.genre === 'Hentai'
   });
 
   try {
@@ -1150,6 +1138,15 @@ async function openPlayer(anime, epIndex = 0) {
 
         if (bestStream.type === 'iframe') {
           loadIframeStream(bestStream.url, bestStream.server);
+        } else if (bestStream.type === 'external') {
+          window.open(bestStream.url, '_blank');
+          showToast(`🔗 Membuka link eksternal: ${bestStream.server}`);
+          // Load trailer as fallback in player if available, else close
+          if (anime.trailer_url) {
+            loadIframeStream(anime.trailer_url, 'Trailer Resmi');
+          } else {
+            closePlayer();
+          }
         } else {
           loadNativeVideo(bestStream.url);
         }
@@ -2188,7 +2185,10 @@ function setupEventListeners() {
       if (DOM.settingDefaultQuality) DOM.settingDefaultQuality.value = qVal;
     }
 
-    if (streamType === 'iframe') {
+    if (streamType === 'external') {
+      window.open(streamUrl, '_blank');
+      showToast(`🔗 Membuka ${serverName} di tab baru...`);
+    } else if (streamType === 'iframe') {
       loadIframeStream(streamUrl, serverName);
     } else {
       const episodes = state.currentAnime.episodes || [];
