@@ -473,6 +473,24 @@ async function getOtakudesuStreams(episodeUrl) {
             if (srcMatch) {
               const url = srcMatch[1];
               const q = payload.q || '720p';
+
+              // If desustream.net, extract direct MP4 file to prevent Firefox CSP frame-ancestors block
+              if (url.includes('desustream')) {
+                try {
+                  const desuHtml = await fetchCurl(url, ['-e', 'https://otakudesu.blog/']);
+                  const mp4Match = desuHtml.match(/https:\/\/[^\"']+\.mp4/);
+                  if (mp4Match) {
+                    streams.push({
+                      server: `Otakudesu DesuStream [${q.toUpperCase()}] (Direct MP4)`,
+                      url: mp4Match[0],
+                      type: 'video',
+                      quality: q
+                    });
+                    continue;
+                  }
+                } catch (err) {}
+              }
+
               const srvName = url.includes('mega') ? 'Mega HD' : (url.includes('desu') ? 'DesuStream' : 'Odvidhide');
               streams.push({
                 server: `Otakudesu ${srvName} [${q.toUpperCase()}]`,
@@ -491,7 +509,7 @@ async function getOtakudesuStreams(episodeUrl) {
     }
   }
 
-  // Deduplicate and rank: 720p HD > 480p > 360p
+  // Deduplicate and rank: 1080p > 720p > 480p > 360p
   const uniqueStreams = [];
   const seenUrls = new Set();
   for (const s of streams) {
@@ -510,44 +528,75 @@ async function getOtakudesuStreams(episodeUrl) {
 }
 
 // Automatically resolve streams for ANY anime title and episode number
-async function resolveStreamByTitle(title, episodeNumber = 1) {
-  if (!title) return [];
+async function resolveStreamByTitle(title, episodeNumber = 1, romajiTitle = '') {
+  if (!title && !romajiTitle) return [];
   const ep = parseInt(episodeNumber, 10) || 1;
-  const cleanTitle = title.replace(/\([^)]*\)/g, '').replace(/Season\s*\d+/i, '').replace(/Part\s*\d+/i, '').trim();
 
-  // 1. Try Samehadaku
-  try {
-    const shResults = await searchSamehadaku(cleanTitle);
-    if (shResults.length > 0) {
-      const epMatch = shResults.find(r => r.url.includes(`episode-${ep}`) || r.title.includes(`Episode ${ep}`));
-      if (epMatch) {
-        const streams = await getSamehadakuStreams(epMatch.url);
-        if (streams.length > 0) return streams;
-      }
-      const seriesEps = await getSamehadakuEpisodes(shResults[0].url);
-      const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
-      if (targetEp && targetEp.url) {
-        const streams = await getSamehadakuStreams(targetEp.url);
-        if (streams.length > 0) return streams;
-      }
+  // Extract core keywords from both title and romaji (handling English + Romaji parenthesized formats)
+  const candidates = [];
+  const addCandidate = (str) => {
+    if (!str) return;
+    const clean = str
+      .replace(/Season\s*\d+/gi, '')
+      .replace(/S\d+/gi, '')
+      .replace(/Part\s*\d+/gi, '')
+      .replace(/\b(?:II|III|IV|V)\b/g, '')
+      .replace(/[^a-zA-Z0-9\s]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+    if (clean && clean.length >= 3) candidates.push(clean);
+  };
+
+  if (romajiTitle) addCandidate(romajiTitle);
+
+  if (title) {
+    const parenMatch = title.match(/\(([^)]+)\)/);
+    if (parenMatch && parenMatch[1]) {
+      addCandidate(parenMatch[1]);
     }
-  } catch (e) {
-    console.warn('[Resolve] Samehadaku error:', e.message);
+    const outsideParen = title.replace(/\([^)]*\)/g, '').trim();
+    addCandidate(outsideParen);
   }
 
-  // 2. Try Otakudesu
-  try {
-    const odResults = await searchOtakudesu(cleanTitle);
-    if (odResults.length > 0) {
-      const seriesEps = await getOtakudesuAnimeEpisodes(odResults[0].url);
-      const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
-      if (targetEp && targetEp.url) {
-        const streams = await getOtakudesuStreams(targetEp.url);
-        if (streams.length > 0) return streams;
+  const uniqueCandidates = [...new Set(candidates.filter(Boolean))];
+
+  // 1. Search Samehadaku with all candidates
+  for (const query of uniqueCandidates) {
+    try {
+      const shResults = await searchSamehadaku(query);
+      if (shResults.length > 0) {
+        const epMatch = shResults.find(r => r.url.includes(`episode-${ep}`) || r.title.includes(`Episode ${ep}`));
+        if (epMatch) {
+          const streams = await getSamehadakuStreams(epMatch.url);
+          if (streams.length > 0) return streams;
+        }
+        const seriesEps = await getSamehadakuEpisodes(shResults[0].url);
+        const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
+        if (targetEp && targetEp.url) {
+          const streams = await getSamehadakuStreams(targetEp.url);
+          if (streams.length > 0) return streams;
+        }
       }
+    } catch (e) {
+      console.warn('[Resolve] Samehadaku error for query:', query, e.message);
     }
-  } catch (e) {
-    console.warn('[Resolve] Otakudesu error:', e.message);
+  }
+
+  // 2. Search Otakudesu with all candidates
+  for (const query of uniqueCandidates) {
+    try {
+      const odResults = await searchOtakudesu(query);
+      if (odResults.length > 0) {
+        const seriesEps = await getOtakudesuAnimeEpisodes(odResults[0].url);
+        const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
+        if (targetEp && targetEp.url) {
+          const streams = await getOtakudesuStreams(targetEp.url);
+          if (streams.length > 0) return streams;
+        }
+      }
+    } catch (e) {
+      console.warn('[Resolve] Otakudesu error for query:', query, e.message);
+    }
   }
 
   return [];

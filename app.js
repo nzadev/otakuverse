@@ -826,10 +826,12 @@ async function openPlayer(anime, epIndex = 0) {
 
   showToast(`🔍 Mengambil video asli Episode ${currentEp.number} (1080p/720p)...`);
 
+  const romajiName = anime.native_title || (anime.titles && anime.titles.romaji) || '';
   const queryParams = new URLSearchParams({
     source: targetSource,
     url: targetUrl,
     title: anime.title || '',
+    romaji: romajiName,
     episode: currentEp.number || (epIndex + 1)
   });
 

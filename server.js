@@ -443,6 +443,7 @@ const server = http.createServer(async (req, res) => {
     const source = requestUrl.searchParams.get('source') || 'samehadaku';
     const targetUrl = requestUrl.searchParams.get('url') || '';
     const title = requestUrl.searchParams.get('title') || '';
+    const romaji = requestUrl.searchParams.get('romaji') || '';
     const episode = requestUrl.searchParams.get('episode') || '1';
     let streams = [];
 
@@ -453,9 +454,9 @@ const server = http.createServer(async (req, res) => {
         streams = await scraper.getOtakudesuStreams(targetUrl);
       }
 
-      // Auto-resolve stream by title for AniList or other sources
-      if (streams.length === 0 && title) {
-        streams = await scraper.resolveStreamByTitle(title, episode);
+      // Auto-resolve stream by title and romaji for AniList or other sources
+      if (streams.length === 0 && (title || romaji)) {
+        streams = await scraper.resolveStreamByTitle(title, episode, romaji);
       }
     } catch (err) {
       console.warn('Scraper stream error:', err.message);
@@ -623,7 +624,12 @@ const server = http.createServer(async (req, res) => {
         res.end(`Server Error: ${err.code}`);
       }
     } else {
-      res.writeHead(200, { 'Content-Type': contentType });
+      res.writeHead(200, {
+        'Content-Type': contentType,
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0'
+      });
       res.end(content);
     }
   });
