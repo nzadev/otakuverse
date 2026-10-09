@@ -144,6 +144,7 @@ const DOM = {
   btnClosePlayer: document.getElementById('btnClosePlayer'),
   playerModalTitle: document.getElementById('playerModalTitle'),
   playerModalEp: document.getElementById('playerModalEp'),
+  playerModalPoster: document.getElementById('playerModalPoster'),
   serverSelect: document.getElementById('serverSelect'),
   qualitySelect: document.getElementById('qualitySelect'),
   btnQuickFallbackServer: document.getElementById('btnQuickFallbackServer'),
@@ -367,7 +368,7 @@ function normalizeAnime(item) {
 // ==========================================================================
 async function fetchAniListDirect({ page = 1, perPage = 30, search = '', genre = '', status = '', sort = 'trending' }) {
   const query = `
-    query ($page: Int, $perPage: Int, $search: String, $genre: String, $status: MediaStatus, $sort: [MediaSort]) {
+    query ($page: Int, $perPage: Int, $search: String, $genre: String, $status: MediaStatus, $sort: [MediaSort], $isAdult: Boolean) {
       Page(page: $page, perPage: $perPage) {
         pageInfo {
           total
@@ -376,7 +377,7 @@ async function fetchAniListDirect({ page = 1, perPage = 30, search = '', genre =
           hasNextPage
           perPage
         }
-        media(type: ANIME, isAdult: false, search: $search, genre: $genre, status: $status, sort: $sort) {
+        media(type: ANIME, isAdult: $isAdult, search: $search, genre: $genre, status: $status, sort: $sort) {
           id
           title { romaji english native }
           coverImage { extraLarge large }
@@ -411,12 +412,19 @@ async function fetchAniListDirect({ page = 1, perPage = 30, search = '', genre =
   if (sort === 'latest' && (!status || status === 'All')) {
     variables.status = 'RELEASING';
   }
-  if (search && search.trim()) {
+  if (genre === 'Spesial 18+') {
+    variables.isAdult = true;
+    variables.genre = 'Hentai';
+  } else if (state.adminMode && search && search.trim()) {
+    variables.isAdult = true;
     variables.search = search.trim();
+    if (genre && genre !== 'All') variables.genre = genre;
+  } else {
+    variables.isAdult = false;
+    if (search && search.trim()) variables.search = search.trim();
+    if (genre && genre !== 'All') variables.genre = genre;
   }
-  if (genre && genre !== 'All') {
-    variables.genre = genre;
-  }
+
   if (status && status !== 'All') {
     if (status.toLowerCase() === 'ongoing') variables.status = 'RELEASING';
     if (status.toLowerCase() === 'completed') variables.status = 'FINISHED';
@@ -706,6 +714,12 @@ function openAnimeDetails(anime) {
     : (anime.backdrop || anime.poster);
 
   DOM.detailBackdrop.style.backgroundImage = `url('${detailBg}')`;
+  if (detailBg === anime.poster) {
+    DOM.detailBackdrop.classList.add('is-poster-fallback');
+  } else {
+    DOM.detailBackdrop.classList.remove('is-poster-fallback');
+  }
+  
   DOM.detailPoster.src = anime.poster || '';
   DOM.detailPoster.alt = anime.title;
   DOM.detailScore.textContent = `★ ${anime.score || '8.8'}`;
@@ -990,6 +1004,13 @@ async function openPlayer(anime, epIndex = 0) {
 
   DOM.playerModalTitle.textContent = anime.title;
   DOM.playerModalEp.textContent = `Episode ${currentEp.number} — ${currentEp.title || 'HD Direct Stream'}`;
+  
+  if (anime.poster) {
+    DOM.playerModalPoster.src = anime.poster;
+    DOM.playerModalPoster.style.display = 'block';
+  } else {
+    DOM.playerModalPoster.style.display = 'none';
+  }
 
   // Reset Player UI
   DOM.playerModal.classList.add('active');
@@ -1126,11 +1147,13 @@ async function openPlayer(anime, epIndex = 0) {
         showToast('⚠️ Stream episode belum rilis, memutar trailer resmi.');
       } else {
         showToast('⚠️ Tidak ada server video aktif yang ditemukan untuk episode ini.');
+        closePlayer();
       }
     }
   } catch (e) {
     console.warn('Gagal memuat stream scraper:', e);
     showToast('⚠️ Gagal terhubung ke server video.');
+    closePlayer();
   }
 }
 

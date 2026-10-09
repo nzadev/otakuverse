@@ -1,0 +1,15 @@
+/* Loading spinner for buffering state */
+.video-container.is-buffering .center-play-button {
+  opacity: 1 !important;
+  visibility: visible !important;
+  pointer-events: none;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.video-container.is-buffering .center-play-button svg {
+  animation: spin 1s linear infinite;
+  stroke: white;
+  stroke-width: 2;
+  fill: none;
+}
+@keyframes spin { 100% { transform: rotate(360deg); } }

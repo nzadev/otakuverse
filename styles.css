@@ -794,7 +794,9 @@ body {
   font-size: 0.9rem;
   font-weight: 700;
   line-height: 1.35;
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -1625,15 +1627,19 @@ input:checked + .slider:before {
   align-items: center;
   justify-content: center;
   gap: 40px;
+  width: 100%;
+  padding: 0 10vw;
+  box-sizing: border-box;
 }
 
+/* Add double tap zone capability */
 .hud-step-btn {
   background: rgba(15, 23, 42, 0.5);
   backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.12);
   color: #fff;
-  width: 54px;
-  height: 54px;
+  width: 64px;
+  height: 64px;
   border-radius: 50%;
   display: flex;
   flex-direction: column;
@@ -1642,6 +1648,14 @@ input:checked + .slider:before {
   cursor: pointer;
   transition: all var(--transition-fast);
   position: relative;
+}
+
+#btnRewind10 {
+  margin-right: auto;
+}
+
+#btnForward10 {
+  margin-left: auto;
 }
 
 .hud-step-btn:hover {
@@ -2163,4 +2177,8 @@ input:checked + .slider:before {
     width: 20px !important;
     height: 20px !important;
   }
+}
+.detail-backdrop-image.is-poster-fallback {
+  filter: blur(20px) brightness(0.4) !important;
+  transform: scale(1.1);
 }
