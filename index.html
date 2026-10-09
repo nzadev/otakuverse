@@ -412,26 +412,38 @@
             </div>
           </div>
 
-          <!-- Secret Admin & Special 18+ Access Card -->
-          <div class="settings-card admin-settings-card" id="adminSettingsCard" style="border: 1px solid rgba(236, 72, 153, 0.4); background: linear-gradient(135deg, rgba(236, 72, 153, 0.05), rgba(168, 85, 247, 0.05));">
+          <!-- Discreet Advanced Developer & Vault Card -->
+          <div class="settings-card admin-settings-card" id="adminSettingsCard" style="border: 1px solid rgba(139, 92, 246, 0.25); background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(139, 92, 246, 0.04));">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h3 class="card-heading" style="color: #f472b6; margin-bottom: 0;">🔞 Mode Admin &amp; Akses Spesial (VIP 18+)</h3>
-              <span class="status-pill" id="adminStatusPill" style="background: rgba(236, 72, 153, 0.2); color: #f472b6; border-color: #ec4899;">Terkunci 🔒</span>
+              <h3 class="card-heading" style="color: var(--accent-light); margin-bottom: 0;">🔒 Pengaturan Lanjutan &amp; Vault</h3>
+              <span class="status-pill idle" id="adminStatusPill">Terkunci 🔒</span>
             </div>
             
             <div class="setting-row">
               <div class="setting-info">
-                <span class="setting-title">Aktivasi Mode Spesial (Ahegao / Ecchi / 18+ Vault)</span>
-                <span class="setting-desc">Buka katalog tersembunyi anime dewasa (DxD, Yosuga no Sora, Overflow, dll) &amp; fitur dev</span>
+                <span class="setting-title">Akses Fitur Pengembang &amp; Brankas Khusus</span>
+                <span class="setting-desc">Buka kunci fitur stream injector, unduh video, dan koleksi tayangan malam</span>
               </div>
               <div class="setting-control" style="display: flex; gap: 8px;">
-                <button type="button" class="cta-btn primary-cta" id="btnToggleAdmin" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none;">
-                  <span id="btnToggleAdminText">🔓 Masukkan PIN (6969)</span>
+                <button type="button" class="cta-btn secondary-cta" id="btnToggleAdmin" style="border-color: rgba(139, 92, 246, 0.4);">
+                  <span id="btnToggleAdminText">🔑 Buka Kunci Akses</span>
                 </button>
               </div>
             </div>
 
             <div id="adminControlsArea" class="hidden" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;">
+              <div class="setting-row" style="margin-bottom: 14px;">
+                <div class="setting-info">
+                  <span class="setting-title">Ganti Kode PIN Keamanan</span>
+                  <span class="setting-desc">Ubah PIN akses brankas sesuai keinginan lo</span>
+                </div>
+                <div class="setting-control" style="display: flex; gap: 6px;">
+                  <button type="button" class="cta-btn secondary-cta" id="btnChangeAdminPin" style="padding: 6px 12px; font-size: 0.8rem;">
+                    ⚙️ Ganti PIN
+                  </button>
+                </div>
+              </div>
+
               <div class="setting-row">
                 <div class="setting-info">
                   <span class="setting-title">Custom Video Stream Injector</span>
@@ -439,7 +451,7 @@
                 </div>
                 <div class="setting-control" style="display: flex; gap: 6px; flex: 1; max-width: 340px;">
                   <input type="text" id="adminCustomStreamInput" placeholder="https://.../video.mp4" class="num-input" style="flex: 1; font-size: 0.8rem; text-align: left; padding: 6px 10px;">
-                  <button type="button" class="cta-btn secondary-cta" id="btnAdminPlayCustom" style="padding: 6px 12px; font-size: 0.8rem;">Putar</button>
+                  <button type="button" class="cta-btn primary-cta" id="btnAdminPlayCustom" style="padding: 6px 12px; font-size: 0.8rem;">Putar</button>
                 </div>
               </div>
             </div>
@@ -727,6 +739,6 @@
   <!-- Toast Notification -->
   <div class="toast-notification" id="toastNotice" role="alert"></div>
 
-  <script src="app.js?v=3.9.5"></script>
+  <script src="app.js?v=3.9.6"></script>
 </body>
 </html>

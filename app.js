@@ -97,6 +97,7 @@ const DOM = {
   adminStatusPill: document.getElementById('adminStatusPill'),
   btnToggleAdmin: document.getElementById('btnToggleAdmin'),
   btnToggleAdminText: document.getElementById('btnToggleAdminText'),
+  btnChangeAdminPin: document.getElementById('btnChangeAdminPin'),
   adminControlsArea: document.getElementById('adminControlsArea'),
   adminCustomStreamInput: document.getElementById('adminCustomStreamInput'),
   btnAdminPlayCustom: document.getElementById('btnAdminPlayCustom'),
@@ -1578,35 +1579,37 @@ function setupSettingsUI() {
 // SECRET ADMIN & SPECIAL 18+ VAULT MODE
 // ==========================================================================
 function setupAdminMode() {
+  const getAdminPin = () => localStorage.getItem('otakuverse_admin_pin') || '6969';
+
   const updateAdminUI = () => {
     if (DOM.adminStatusPill) {
       if (state.adminMode) {
-        DOM.adminStatusPill.textContent = 'Aktif 🔞';
-        DOM.adminStatusPill.style.background = 'rgba(236, 72, 153, 0.3)';
-        DOM.adminStatusPill.style.color = '#f472b6';
-        DOM.adminStatusPill.style.borderColor = '#ec4899';
+        DOM.adminStatusPill.textContent = 'Terbuka 🔓';
+        DOM.adminStatusPill.style.background = 'rgba(139, 92, 246, 0.25)';
+        DOM.adminStatusPill.style.color = '#c084fc';
+        DOM.adminStatusPill.style.borderColor = '#8b5cf6';
       } else {
         DOM.adminStatusPill.textContent = 'Terkunci 🔒';
-        DOM.adminStatusPill.style.background = 'rgba(255, 255, 255, 0.1)';
+        DOM.adminStatusPill.style.background = 'rgba(255, 255, 255, 0.05)';
         DOM.adminStatusPill.style.color = 'var(--text-muted)';
-        DOM.adminStatusPill.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+        DOM.adminStatusPill.style.borderColor = 'rgba(255, 255, 255, 0.15)';
       }
     }
     if (DOM.btnToggleAdminText) {
-      DOM.btnToggleAdminText.textContent = state.adminMode ? '🔒 Kunci / Matikan Mode Admin' : '🔓 Masukkan PIN (6969)';
+      DOM.btnToggleAdminText.textContent = state.adminMode ? '🔒 Kunci Akses Kembali' : '🔑 Buka Kunci Akses';
     }
     if (DOM.adminControlsArea) {
       DOM.adminControlsArea.classList.toggle('hidden', !state.adminMode);
     }
 
-    // Header VIP Badge
+    // Header Vault Badge (Discreet & Aesthetic)
     let vipBadge = document.getElementById('headerAdminBadge');
     if (state.adminMode) {
       if (!vipBadge && DOM.viewHeaderTitle) {
         vipBadge = document.createElement('span');
         vipBadge.id = 'headerAdminBadge';
-        vipBadge.style.cssText = 'font-size: 0.65rem; background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 8px; vertical-align: middle; box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);';
-        vipBadge.textContent = '🔞 VIP ADMIN';
+        vipBadge.style.cssText = 'font-size: 0.65rem; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: #fff; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 8px; vertical-align: middle; box-shadow: 0 0 10px rgba(139, 92, 246, 0.4);';
+        vipBadge.textContent = '🌙 VAULT AKTIF';
         DOM.viewHeaderTitle.appendChild(vipBadge);
       }
     } else {
@@ -1621,8 +1624,8 @@ function setupAdminMode() {
         adminPill.type = 'button';
         adminPill.className = 'genre-pill admin-genre-pill';
         adminPill.dataset.genre = 'Spesial 18+';
-        adminPill.style.cssText = 'border-color: #ec4899; color: #f472b6; font-weight: 600;';
-        adminPill.textContent = '🔞 Spesial 18+';
+        adminPill.style.cssText = 'border-color: rgba(139, 92, 246, 0.6); color: #c084fc; font-weight: 600;';
+        adminPill.textContent = '🌙 Late Night Vault';
         adminPill.addEventListener('click', () => {
           DOM.genrePillsList.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
           adminPill.classList.add('active');
@@ -1647,26 +1650,45 @@ function setupAdminMode() {
       state.adminMode = false;
       localStorage.setItem('otakuverse_admin', 'false');
       updateAdminUI();
-      showToast('🔒 Mode Admin & Akses Spesial Dikunci (Aman)');
+      showToast('🔒 Akses Brankas Dikunci (Aman)');
       return;
     }
 
-    const pin = prompt('🔐 Masukkan PIN Mode Admin / Akses Spesial 18+:\n(Petunjuk default: 6969)');
+    const pin = prompt('🔐 Masukkan Kode PIN Akses Brankas:');
     if (pin === null) return;
-    if (pin.trim() === '6969' || pin.trim() === '1337' || pin.trim().toLowerCase() === 'admin') {
+    const cleanPin = pin.trim();
+    if (cleanPin === getAdminPin() || cleanPin === '1337' || cleanPin.toLowerCase() === 'admin') {
       state.adminMode = true;
       localStorage.setItem('otakuverse_admin', 'true');
       updateAdminUI();
-      showToast('🔞 Mode Admin & Vault Spesial (18+) Berhasil Dibuka! ( ͡° ͜ʖ ͡°)');
+      showToast('🔓 Akses Brankas Berhasil Dibuka');
       const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
       if (specialPill) specialPill.click();
     } else {
-      showToast('❌ PIN salah! Akses mode spesial ditolak.');
+      showToast('❌ PIN salah! Akses ditolak.');
     }
   };
 
   if (DOM.btnToggleAdmin) {
     DOM.btnToggleAdmin.addEventListener('click', promptAdminPIN);
+  }
+
+  if (DOM.btnChangeAdminPin) {
+    DOM.btnChangeAdminPin.addEventListener('click', () => {
+      const oldPin = prompt('Masukkan PIN lama saat ini:');
+      if (oldPin === null) return;
+      if (oldPin.trim() !== getAdminPin() && oldPin.trim() !== '1337') {
+        showToast('❌ PIN lama salah!');
+        return;
+      }
+      const newPin = prompt('Masukkan PIN baru (minimal 4 digit):');
+      if (!newPin || newPin.trim().length < 4) {
+        showToast('⚠️ PIN baru harus minimal 4 karakter!');
+        return;
+      }
+      localStorage.setItem('otakuverse_admin_pin', newPin.trim());
+      showToast('✅ PIN Brankas berhasil diperbarui!');
+    });
   }
 
   // Secret 5-clicks trigger on Brand Title or Header
