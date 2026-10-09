@@ -769,6 +769,16 @@ async function getOtakudesuStreams(episodeUrl) {
     }
   }
 
+  // Deduplicate streams
+  const uniqueStreams = [];
+  const seenUrls = new Set();
+  for (const s of streams) {
+    if (!seenUrls.has(s.url)) {
+      seenUrls.add(s.url);
+      uniqueStreams.push(s);
+    }
+  }
+
   // STRICT HARDWARE-ACCELERATED STREAM SORTING: Direct MP4 (GPU decode) > Clean iframe > Mega/Blogger
   const scoreStream = (s) => {
     let score = 0;
@@ -787,8 +797,8 @@ async function getOtakudesuStreams(episodeUrl) {
   return uniqueStreams;
 }
 
-// Automatically resolve streams for ANY anime title and episode number
-async function resolveStreamByTitle(title, episodeNumber = 1, romajiTitle = '') {
+// Automatically resolve streams for ANY anime title and episode number across all sources
+async function resolveStreamByTitle(title, episodeNumber = 1, romajiTitle = '', preferredSource = 'any') {
   if (!title && !romajiTitle) return [];
   const ep = parseInt(episodeNumber, 10) || 1;
 
@@ -819,47 +829,89 @@ async function resolveStreamByTitle(title, episodeNumber = 1, romajiTitle = '') 
   }
 
   const uniqueCandidates = [...new Set(candidates.filter(Boolean))];
+  const allFoundStreams = [];
 
-  // 1. Search Samehadaku with all candidates
-  for (const query of uniqueCandidates) {
-    try {
-      const shResults = await searchSamehadaku(query);
-      if (shResults.length > 0) {
-        const epMatch = shResults.find(r => r.url.includes(`episode-${ep}`) || r.title.includes(`Episode ${ep}`));
-        if (epMatch) {
-          const streams = await getSamehadakuStreams(epMatch.url);
-          if (streams.length > 0) return streams;
+  // 1. Samehadaku search helper
+  const fetchSamehadaku = async () => {
+    for (const query of uniqueCandidates) {
+      try {
+        const shResults = await searchSamehadaku(query);
+        if (shResults.length > 0) {
+          const epMatch = shResults.find(r => r.url.includes(`episode-${ep}`) || r.title.includes(`Episode ${ep}`));
+          if (epMatch) {
+            const streams = await getSamehadakuStreams(epMatch.url);
+            if (streams.length > 0) {
+              allFoundStreams.push(...streams);
+              return;
+            }
+          }
+          const seriesEps = await getSamehadakuEpisodes(shResults[0].url);
+          const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
+          if (targetEp && targetEp.url) {
+            const streams = await getSamehadakuStreams(targetEp.url);
+            if (streams.length > 0) {
+              allFoundStreams.push(...streams);
+              return;
+            }
+          }
         }
-        const seriesEps = await getSamehadakuEpisodes(shResults[0].url);
-        const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
-        if (targetEp && targetEp.url) {
-          const streams = await getSamehadakuStreams(targetEp.url);
-          if (streams.length > 0) return streams;
-        }
+      } catch (e) {
+        console.warn('[Resolve] Samehadaku error for query:', query, e.message);
       }
-    } catch (e) {
-      console.warn('[Resolve] Samehadaku error for query:', query, e.message);
+    }
+  };
+
+  // 2. Otakudesu search helper
+  const fetchOtakudesu = async () => {
+    for (const query of uniqueCandidates) {
+      try {
+        const odResults = await searchOtakudesu(query);
+        if (odResults.length > 0) {
+          const seriesEps = await getOtakudesuAnimeEpisodes(odResults[0].url);
+          const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
+          if (targetEp && targetEp.url) {
+            const streams = await getOtakudesuStreams(targetEp.url);
+            if (streams.length > 0) {
+              allFoundStreams.push(...streams);
+              return;
+            }
+          }
+        }
+      } catch (e) {
+        console.warn('[Resolve] Otakudesu error for query:', query, e.message);
+      }
+    }
+  };
+
+  // Fetch concurrently from both scrapers to ensure healthy mirrors
+  await Promise.allSettled([fetchSamehadaku(), fetchOtakudesu()]);
+
+  // Deduplicate
+  const uniqueStreams = [];
+  const seenUrls = new Set();
+  for (const s of allFoundStreams) {
+    if (!seenUrls.has(s.url)) {
+      seenUrls.add(s.url);
+      uniqueStreams.push(s);
     }
   }
 
-  // 2. Search Otakudesu with all candidates
-  for (const query of uniqueCandidates) {
-    try {
-      const odResults = await searchOtakudesu(query);
-      if (odResults.length > 0) {
-        const seriesEps = await getOtakudesuAnimeEpisodes(odResults[0].url);
-        const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
-        if (targetEp && targetEp.url) {
-          const streams = await getOtakudesuStreams(targetEp.url);
-          if (streams.length > 0) return streams;
-        }
-      }
-    } catch (e) {
-      console.warn('[Resolve] Otakudesu error for query:', query, e.message);
-    }
-  }
+  // Smart Hardware-Accelerated Stream Scoring:
+  // Direct MP4 (Archive.org/Wibufile/Odcloud GPU decode) > Clean Embeds > Mega/Blogger (penalty for frequent takedowns)
+  const scoreStream = (s) => {
+    let score = 0;
+    if (s.type === 'video') score += 1000;
+    if (s.quality === '1080p') score += 400;
+    else if (s.quality === '720p') score += 300;
+    else if (s.quality === '480p') score += 200;
+    else if (s.quality === '360p') score += 100;
+    if (s.url && s.url.includes('mega.nz')) score -= 450; // Mega frequently has deleted files
+    if (s.isBlogger || (s.url && s.url.includes('blogger.com'))) score -= 300;
+    return score;
+  };
 
-  return [];
+  uniqueStreams.sort((a, b) => scoreStream(b) - scoreStream(a));
+  return uniqueStreams;
 }
 
 module.exports = {
