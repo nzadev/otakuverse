@@ -555,7 +555,7 @@ function renderAnimeGrid(isAppend = false) {
       </div>
       <div class="card-body">
         <div class="card-title" title="${escapeHtml(anime.title)}">${escapeHtml(anime.title)}</div>
-        <div class="card-meta-line">${escapeHtml(anime.native_title || anime.studio || 'TV Series')}</div>
+        <div class="card-meta-line">${escapeHtml((anime.studio && !anime.studio.toLowerCase().includes('unknown') && !anime.studio.toLowerCase().includes('studio animation')) ? `${anime.studio} • ${(Array.isArray(anime.genres) && anime.genres.length) ? anime.genres.slice(0, 2).join(', ') : (anime.type || 'TV Series')}` : `${(Array.isArray(anime.genres) && anime.genres.length) ? anime.genres.slice(0, 2).join(', ') : (anime.genre || 'Action')} • ${anime.type || 'TV Series'}`)}</div>
         <div class="card-source-tag">📡 ${escapeHtml(sourceName)}</div>
       </div>
     `;
@@ -592,7 +592,9 @@ function updateHeroSpotlight() {
 
   DOM.heroBackdrop.style.backgroundImage = `url('${featured.backdrop || featured.poster}')`;
   DOM.heroTitle.textContent = featured.title;
-  DOM.heroNativeTitle.textContent = `${featured.native_title || 'TV Series'} • ${featured.studio || 'Studio'} (${featured.season || 'Fall 2026'})`;
+  const featGenres = Array.isArray(featured.genres) && featured.genres.length ? featured.genres.slice(0, 2).join(', ') : 'Action, Fantasy';
+  const featStudio = (featured.studio && !featured.studio.toLowerCase().includes('unknown') && !featured.studio.toLowerCase().includes('studio animation')) ? featured.studio : 'Animation Studio';
+  DOM.heroNativeTitle.textContent = `${featStudio} • ${featGenres} (${featured.season || featured.year || '2026'})`;
   DOM.heroSynopsis.textContent = featured.synopsis || 'Dunia fantasi anime spektakuler dengan visual tingkat tinggi dan jalan cerita yang memukau.';
   DOM.heroScore.textContent = `★ ${featured.score || '8.9'}`;
   DOM.heroRepoTag.textContent = `🇮🇩 ${featured.source || 'Samehadaku'}`;
@@ -619,7 +621,9 @@ function openAnimeDetails(anime) {
   DOM.detailScore.textContent = `★ ${anime.score || '8.8'}`;
   DOM.detailSourceBadge.textContent = `📡 ${anime.source || 'Samehadaku (ID)'}`;
   DOM.detailTitle.textContent = anime.title;
-  DOM.detailNativeTitle.textContent = `${anime.native_title || ''} • ${anime.studio || 'Unknown Studio'}`;
+  const detGenres = Array.isArray(anime.genres) && anime.genres.length ? anime.genres.slice(0, 2).join(', ') : (anime.genre || 'Action');
+  const detStudio = (anime.studio && !anime.studio.toLowerCase().includes('unknown') && !anime.studio.toLowerCase().includes('studio animation')) ? anime.studio : 'Studio Animation';
+  DOM.detailNativeTitle.textContent = `${detStudio} • ${detGenres} • ${anime.type || 'TV Series'}`;
   
   DOM.detailStatus.textContent = anime.status === 'RELEASING' ? 'Sedang Tayang' : 'Tamat';
   DOM.detailSeasonYear.textContent = `${anime.season || 'Fall'} ${anime.year || '2026'}`;
@@ -1197,7 +1201,7 @@ function renderLibrary() {
       </div>
       <div class="card-body">
         <div class="card-title">${escapeHtml(item.title)}</div>
-        <div class="card-meta-line">${escapeHtml(item.native_title || 'TV Series')}</div>
+        <div class="card-meta-line">${escapeHtml((item.studio && !item.studio.toLowerCase().includes('unknown')) ? `${item.studio} • ${item.type || 'TV'}` : `${(Array.isArray(item.genres) && item.genres.length) ? item.genres.slice(0, 2).join(', ') : (item.type || 'TV Series')}`)}</div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
           <span class="status-pill ${item.category === 'completed' ? 'connected' : 'idle'}">
             ${getCategoryLabel(item.category)}
