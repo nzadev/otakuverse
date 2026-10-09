@@ -541,7 +541,8 @@ function renderAnimeGrid(isAppend = false) {
              class="card-poster" 
              loading="lazy"
              referrerpolicy="no-referrer"
-             onerror="if(!this.dataset.proxied){this.dataset.proxied='1';this.src='/api/image-proxy?url='+encodeURIComponent('${encodeURIComponent(anime.poster || '')}');}else{this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80';}">
+             data-raw-src="${escapeHtml(anime.poster || '')}"
+             onerror="if(!this.dataset.proxied && this.dataset.rawSrc){this.dataset.proxied='1';this.src='/api/image-proxy?url='+encodeURIComponent(this.dataset.rawSrc);}else{this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80';}">
         <div class="card-top-badges">
           <span class="score-chip">${scoreVal}</span>
           <span class="ep-chip">${statusText} &bull; ${totalEps} Ep</span>
@@ -1269,8 +1270,11 @@ function renderExtensions() {
           <div class="ext-desc">${escapeHtml(ext.description || 'Ekstensi scraper Aniyomi/Keiyoushi')}</div>
         </div>
       </div>
-      <div class="ext-right">
+      <div class="ext-right" style="display: flex; gap: 8px; align-items: center;">
         <span class="status-pill connected">● Terpasang</span>
+        <button type="button" class="cta-btn primary-cta" style="padding: 6px 12px; font-size: 0.8rem;" onclick="useExtensionSource('${escapeHtml(ext.id)}', '${escapeHtml(ext.name)}')">
+          Gunakan
+        </button>
         <button type="button" class="cta-btn secondary-cta" style="padding: 6px 12px; font-size: 0.8rem;" onclick="checkSingleExtUpdate('${escapeHtml(ext.id)}')">
           Perbarui
         </button>
@@ -1282,6 +1286,22 @@ function renderExtensions() {
 
   DOM.extensionsList.appendChild(fragment);
 }
+
+window.useExtensionSource = function(extId, extName) {
+  state.selectedSource = extId;
+  if (DOM.sourceSelectDropdown) {
+    DOM.sourceSelectDropdown.value = extId;
+    const selectedText = DOM.sourceSelectDropdown.options[DOM.sourceSelectDropdown.selectedIndex]?.text || extName;
+    if (DOM.sidebarActiveSource) {
+      DOM.sidebarActiveSource.querySelector('.source-text').textContent = selectedText;
+    }
+  }
+  showToast(`📡 Sumber aktif diubah ke ${extName}`);
+  const animeTabBtn = document.querySelector('.aniyomi-sidebar .nav-item[data-tab="anime"]') || document.querySelector('.aniyomi-bottom-nav .bottom-nav-item[data-tab="anime"]');
+  if (animeTabBtn) animeTabBtn.click();
+  state.currentPage = 1;
+  fetchAnime(false);
+};
 
 window.checkSingleExtUpdate = function(extId) {
   showToast(`✅ Ekstensi ${extId} telah menggunakan versi terbaru.`);
