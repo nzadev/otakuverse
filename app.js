@@ -532,7 +532,12 @@ function renderAnimeGrid(isAppend = false) {
     const sourceName = anime.source || 'Samehadaku';
     const totalEps = anime.episodes_count || (anime.episodes ? anime.episodes.length : 24);
     const scoreVal = anime.score ? `★ ${anime.score}` : '★ 8.5';
-    const statusText = anime.status === 'RELEASING' ? 'Ongoing' : 'Tamat';
+    
+    // Fix Ongoing vs Tamat detection & episode badge text
+    const statusRaw = String(anime.status || '').toLowerCase();
+    const isOngoing = statusRaw.includes('ongoing') || statusRaw.includes('releasing') || statusRaw.includes('airing') || (anime.episode_number && anime.episode_number > 0);
+    const epNum = anime.episode_number || (Array.isArray(anime.episodes) && anime.episodes[0] && anime.episodes[0].number) || totalEps;
+    const epBadgeText = isOngoing ? `Ongoing • Ep ${epNum}` : `Tamat • ${totalEps} Ep`;
 
     card.innerHTML = `
       <div class="card-poster-wrap">
@@ -545,7 +550,7 @@ function renderAnimeGrid(isAppend = false) {
              onerror="if(!this.dataset.proxied && this.dataset.rawSrc){this.dataset.proxied='1';this.src='/api/image-proxy?url='+encodeURIComponent(this.dataset.rawSrc);}else{this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80';}">
         <div class="card-top-badges">
           <span class="score-chip">${scoreVal}</span>
-          <span class="ep-chip">${statusText} &bull; ${totalEps} Ep</span>
+          <span class="ep-chip ${isOngoing ? 'chip-ongoing' : 'chip-completed'}">${epBadgeText}</span>
         </div>
       </div>
       <div class="card-body">
@@ -784,14 +789,17 @@ async function openPlayer(anime, epIndex = 0) {
   DOM.playerModal.setAttribute('aria-hidden', 'false');
   document.body.style.overflow = 'hidden';
 
-  // Setup default server options
+  // Setup initial loading state in server selector
   DOM.serverSelect.innerHTML = `
-    <option value="direct" data-url="${currentEp.stream_url || '/media/sample.mp4'}" data-type="video">⚡ OtakuVerse HD CDN (Direct)</option>
+    <option value="" disabled selected>⏳ Menghubungkan ke Stream HD Asli...</option>
     ${anime.trailer_url ? `<option value="trailer" data-url="${anime.trailer_url}" data-type="iframe">🎬 Trailer Resmi (YT)</option>` : ''}
   `;
 
-  // Start with default local video
-  loadNativeVideo(currentEp.stream_url || `/media/anime_${anime.id}.mp4`);
+  // Pause previous video & hide video player until real stream is ready
+  DOM.mainVideoPlayer.pause();
+  DOM.mainVideoPlayer.src = '';
+  DOM.trailerPlayerIframe.src = '';
+  DOM.centerPlayButton.style.display = 'none';
 
   // Update Skip Intro Chip Text with configured seconds
   DOM.btnSkipIntro.querySelector('span').textContent = `⏩ Lewati Intro (+${state.settings.skipIntroTime}s)`;
@@ -811,53 +819,73 @@ async function openPlayer(anime, epIndex = 0) {
   // Setup HUD idle timer
   resetHudIdleTimer();
 
-  // If anime or episode has a live scraper target URL
-  const targetUrl = currentEp.url || anime.url;
+  // If anime or episode has a live scraper target URL or title
+  const targetUrl = currentEp.url || anime.url || '';
   const isOtakudesu = (anime.source && anime.source.toLowerCase().includes('otakudesu')) || (targetUrl && targetUrl.includes('otakudesu'));
   const targetSource = isOtakudesu ? 'otakudesu' : 'samehadaku';
 
-  if (targetUrl) {
-    showToast(`🔍 Mengambil stream dari server ${isOtakudesu ? 'Otakudesu' : 'Samehadaku'}...`);
-    try {
-      const res = await fetch(`/api/scrapers/streams?source=${encodeURIComponent(targetSource)}&url=${encodeURIComponent(targetUrl)}`);
-      const data = await res.json();
-      if (data.success && Array.isArray(data.streams) && data.streams.length > 0) {
-        DOM.serverSelect.innerHTML = '';
-        data.streams.forEach((stream, idx) => {
-          const opt = document.createElement('option');
-          opt.value = `stream_${idx}`;
-          opt.textContent = `${stream.server} [${stream.quality || 'HD'}]`;
-          opt.dataset.url = stream.url;
-          opt.dataset.type = stream.type || 'video';
-          DOM.serverSelect.appendChild(opt);
-        });
+  showToast(`🔍 Mengambil video asli Episode ${currentEp.number} (1080p/720p)...`);
 
-        if (anime.trailer_url) {
-          const trailerOpt = document.createElement('option');
-          trailerOpt.value = 'trailer';
-          trailerOpt.textContent = '🎬 Trailer Resmi (YT)';
-          trailerOpt.dataset.url = anime.trailer_url;
-          trailerOpt.dataset.type = 'iframe';
-          DOM.serverSelect.appendChild(trailerOpt);
-        }
+  const queryParams = new URLSearchParams({
+    source: targetSource,
+    url: targetUrl,
+    title: anime.title || '',
+    episode: currentEp.number || (epIndex + 1)
+  });
 
-        // Auto-switch to best live stream (prioritize Blogger HD, Odvidhide, or Direct MP4)
-        const bestStream = data.streams.find(s => s.server.includes('Blogger') || s.server.includes('Odvidhide') || s.server.includes('Direct MP4')) || data.streams[1] || data.streams[0];
-        if (bestStream) {
-          const matchedOpt = Array.from(DOM.serverSelect.options).find(o => o.dataset.url === bestStream.url);
-          if (matchedOpt) DOM.serverSelect.value = matchedOpt.value;
+  try {
+    const res = await fetch(`/api/scrapers/streams?${queryParams.toString()}`);
+    const data = await res.json();
+    if (data.success && Array.isArray(data.streams) && data.streams.length > 0) {
+      DOM.serverSelect.innerHTML = '';
+      data.streams.forEach((stream, idx) => {
+        const opt = document.createElement('option');
+        opt.value = `stream_${idx}`;
+        opt.textContent = `${stream.server} [${stream.quality || 'HD'}]`;
+        opt.dataset.url = stream.url;
+        opt.dataset.type = stream.type || 'video';
+        DOM.serverSelect.appendChild(opt);
+      });
 
-          if (bestStream.type === 'iframe') {
-            loadIframeStream(bestStream.url, bestStream.server);
-          } else {
-            loadNativeVideo(bestStream.url);
-          }
-          showToast(`⚡ Memutar dari ${bestStream.server}`);
-        }
+      if (anime.trailer_url) {
+        const trailerOpt = document.createElement('option');
+        trailerOpt.value = 'trailer';
+        trailerOpt.textContent = '🎬 Trailer Resmi (YT)';
+        trailerOpt.dataset.url = anime.trailer_url;
+        trailerOpt.dataset.type = 'iframe';
+        DOM.serverSelect.appendChild(trailerOpt);
       }
-    } catch (e) {
-      console.warn('Gagal memuat stream scraper:', e);
+
+      // STRICT QUALITY SELECTION: 1080p FHD first, then 720p HD. NEVER 360p Blogger if better stream exists!
+      const bestStream = data.streams.find(s => s.quality === '1080p') ||
+                         data.streams.find(s => s.quality === '720p' && !s.isBlogger) ||
+                         data.streams.find(s => s.type === 'video') ||
+                         data.streams.find(s => !s.isBlogger) ||
+                         data.streams[0];
+
+      if (bestStream) {
+        const matchedOpt = Array.from(DOM.serverSelect.options).find(o => o.dataset.url === bestStream.url);
+        if (matchedOpt) DOM.serverSelect.value = matchedOpt.value;
+
+        if (bestStream.type === 'iframe') {
+          loadIframeStream(bestStream.url, bestStream.server);
+        } else {
+          loadNativeVideo(bestStream.url);
+        }
+        showToast(`⚡ Memutar kualitas terbaik: ${bestStream.server}`);
+      }
+    } else {
+      if (anime.trailer_url) {
+        DOM.serverSelect.innerHTML = `<option value="trailer" data-url="${anime.trailer_url}" data-type="iframe">🎬 Trailer Resmi (YT)</option>`;
+        loadIframeStream(anime.trailer_url, 'Trailer Resmi');
+        showToast('⚠️ Stream episode belum rilis, memutar trailer resmi.');
+      } else {
+        showToast('⚠️ Tidak ada server video aktif yang ditemukan untuk episode ini.');
+      }
     }
+  } catch (e) {
+    console.warn('Gagal memuat stream scraper:', e);
+    showToast('⚠️ Gagal terhubung ke server video.');
   }
 }
 

@@ -153,46 +153,96 @@ async function getSamehadakuStreams(episodeUrl) {
   const html = await fetchCurl(episodeUrl);
   const streams = [];
 
-  const embedMatches = [...html.matchAll(/data-embed="([^"]+)"/g)];
-  for (const m of embedMatches) {
+  // 1. Direct high-speed MP4 streams (e.g. wibufile.com FULLHD / HD)
+  const mp4Matches = [...html.matchAll(/https:\/\/[^\"'\s]+(?:wibufile\.com|samehadaku)[^\"'\s]+\.mp4/g)];
+  for (const m of mp4Matches) {
+    const mp4Url = m[0];
+    const is1080 = mp4Url.toUpperCase().includes('FULLHD') || mp4Url.includes('1080');
+    streams.push({
+      server: is1080 ? '⚡ Samehadaku 1080p Full HD (Direct MP4)' : '⚡ Samehadaku 720p HD (Direct MP4)',
+      url: mp4Url,
+      type: 'video',
+      quality: is1080 ? '1080p' : '720p'
+    });
+  }
+
+  // 2. Labeled Embeds (Mega 1080p, Mega 720p, Pixeldrain, Blogger)
+  const labeledEmbeds = [...html.matchAll(/data-embed="([^"]+)"[\s\S]*?<span>([^<]+)<\/span>/g)];
+  for (const m of labeledEmbeds) {
     const raw = m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
     const srcMatch = raw.match(/src="([^"]+)"/);
     if (!srcMatch) continue;
 
     const streamUrl = srcMatch[1];
-    if (streamUrl.includes('blogger.com/video.g')) {
+    const label = m[2].trim();
+    let quality = '720p';
+    if (label.includes('1080p') || streamUrl.includes('1080')) quality = '1080p';
+    else if (label.includes('720p') || streamUrl.includes('720')) quality = '720p';
+    else if (label.includes('480p') || streamUrl.includes('480')) quality = '480p';
+    else if (label.includes('360p') || label.toLowerCase().includes('blogspot') || streamUrl.includes('blogger')) quality = '360p';
+
+    if (streamUrl.includes('mega.nz/embed')) {
       streams.push({
-        server: 'Samehadaku (Blogger HD Stream)',
+        server: `Samehadaku Mega Cloud [${quality.toUpperCase()}]`,
         url: streamUrl,
         type: 'iframe',
-        quality: '720p',
-        isBlogger: true
-      });
-    } else if (streamUrl.includes('mega.nz/embed')) {
-      streams.push({
-        server: 'Samehadaku (Mega Cloud Mirror)',
-        url: streamUrl,
-        type: 'iframe',
-        quality: '1080p'
-      });
-    } else if (streamUrl.endsWith('.mp4')) {
-      streams.push({
-        server: 'Samehadaku Direct MP4',
-        url: streamUrl,
-        type: 'video',
-        quality: '720p'
+        quality: quality
       });
     } else if (streamUrl.includes('pixeldrain.com')) {
       streams.push({
-        server: 'Pixeldrain Mirror',
+        server: `Samehadaku Pixeldrain HD [${quality.toUpperCase()}]`,
         url: streamUrl,
         type: 'iframe',
-        quality: '720p'
+        quality: quality
+      });
+    } else if (streamUrl.includes('blogger.com/video.g')) {
+      streams.push({
+        server: `Samehadaku Blogspot (Cadangan Rendah) [${quality}]`,
+        url: streamUrl,
+        type: 'iframe',
+        quality: quality,
+        isBlogger: true
       });
     }
   }
 
-  return streams;
+  // 3. Fallback to any remaining data-embed if no labeled embeds found
+  if (streams.length === 0) {
+    const embedMatches = [...html.matchAll(/data-embed="([^"]+)"/g)];
+    for (const m of embedMatches) {
+      const raw = m[1].replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"');
+      const srcMatch = raw.match(/src="([^"]+)"/);
+      if (!srcMatch) continue;
+
+      const streamUrl = srcMatch[1];
+      const isMega = streamUrl.includes('mega.nz/embed');
+      const is1080 = isMega || streamUrl.includes('1080');
+      streams.push({
+        server: isMega ? 'Samehadaku Mega Cloud [1080P]' : 'Samehadaku Web Stream [720P]',
+        url: streamUrl,
+        type: 'iframe',
+        quality: is1080 ? '1080p' : '720p'
+      });
+    }
+  }
+
+  // Deduplicate streams
+  const uniqueStreams = [];
+  const seenUrls = new Set();
+  for (const s of streams) {
+    if (!seenUrls.has(s.url)) {
+      seenUrls.add(s.url);
+      uniqueStreams.push(s);
+    }
+  }
+
+  // STRICT QUALITY SORTING: 1080p (FHD) first, then 720p (HD), 480p, and 360p last
+  uniqueStreams.sort((a, b) => {
+    const qRank = { '1080p': 4, '720p': 3, '480p': 2, '360p': 1 };
+    return (qRank[b.quality] || 0) - (qRank[a.quality] || 0);
+  });
+
+  return uniqueStreams;
 }
 
 async function getSamehadakuEpisodes(targetUrl) {
@@ -409,23 +459,31 @@ async function getOtakudesuStreams(episodeUrl) {
       ]);
       const nonce = JSON.parse(nonceJson).data;
 
-      for (let i = 0; i < Math.min(dcMatches.length, 3); i++) {
-        const payload = JSON.parse(Buffer.from(dcMatches[i][1], 'base64').toString());
-        const streamJson = await fetchCurl(`${OTAKUDESU_BASE}/wp-admin/admin-ajax.php`, [
-          '-d', `id=${payload.id}&i=${payload.i}&q=${payload.q}&nonce=${nonce}&action=2a3505c93b0035d3f455df82bf976b84`
-        ]);
-        const parsedRes = JSON.parse(streamJson);
-        if (parsedRes && parsedRes.data) {
-          const iframeHtml = Buffer.from(parsedRes.data, 'base64').toString();
-          const srcMatch = iframeHtml.match(/src="([^"]+)"/);
-          if (srcMatch) {
-            streams.push({
-              server: `Otakudesu (Odvidhide ${payload.q || 'HD'})`,
-              url: srcMatch[1],
-              type: 'iframe',
-              quality: payload.q || '720p'
-            });
+      // Scan up to 10 quality streams (prioritizing 720p HD and 480p)
+      for (let i = 0; i < Math.min(dcMatches.length, 10); i++) {
+        try {
+          const payload = JSON.parse(Buffer.from(dcMatches[i][1], 'base64').toString());
+          const streamJson = await fetchCurl(`${OTAKUDESU_BASE}/wp-admin/admin-ajax.php`, [
+            '-d', `id=${payload.id}&i=${payload.i}&q=${payload.q}&nonce=${nonce}&action=2a3505c93b0035d3f455df82bf976b84`
+          ]);
+          const parsedRes = JSON.parse(streamJson);
+          if (parsedRes && parsedRes.data) {
+            const iframeHtml = Buffer.from(parsedRes.data, 'base64').toString();
+            const srcMatch = iframeHtml.match(/src="([^"]+)"/);
+            if (srcMatch) {
+              const url = srcMatch[1];
+              const q = payload.q || '720p';
+              const srvName = url.includes('mega') ? 'Mega HD' : (url.includes('desu') ? 'DesuStream' : 'Odvidhide');
+              streams.push({
+                server: `Otakudesu ${srvName} [${q.toUpperCase()}]`,
+                url: url,
+                type: 'iframe',
+                quality: q
+              });
+            }
           }
+        } catch (e) {
+          // ignore single item fail
         }
       }
     } catch (err) {
@@ -433,7 +491,66 @@ async function getOtakudesuStreams(episodeUrl) {
     }
   }
 
-  return streams;
+  // Deduplicate and rank: 720p HD > 480p > 360p
+  const uniqueStreams = [];
+  const seenUrls = new Set();
+  for (const s of streams) {
+    if (!seenUrls.has(s.url)) {
+      seenUrls.add(s.url);
+      uniqueStreams.push(s);
+    }
+  }
+
+  uniqueStreams.sort((a, b) => {
+    const qRank = { '1080p': 4, '720p': 3, '480p': 2, '360p': 1 };
+    return (qRank[b.quality] || 0) - (qRank[a.quality] || 0);
+  });
+
+  return uniqueStreams;
+}
+
+// Automatically resolve streams for ANY anime title and episode number
+async function resolveStreamByTitle(title, episodeNumber = 1) {
+  if (!title) return [];
+  const ep = parseInt(episodeNumber, 10) || 1;
+  const cleanTitle = title.replace(/\([^)]*\)/g, '').replace(/Season\s*\d+/i, '').replace(/Part\s*\d+/i, '').trim();
+
+  // 1. Try Samehadaku
+  try {
+    const shResults = await searchSamehadaku(cleanTitle);
+    if (shResults.length > 0) {
+      const epMatch = shResults.find(r => r.url.includes(`episode-${ep}`) || r.title.includes(`Episode ${ep}`));
+      if (epMatch) {
+        const streams = await getSamehadakuStreams(epMatch.url);
+        if (streams.length > 0) return streams;
+      }
+      const seriesEps = await getSamehadakuEpisodes(shResults[0].url);
+      const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
+      if (targetEp && targetEp.url) {
+        const streams = await getSamehadakuStreams(targetEp.url);
+        if (streams.length > 0) return streams;
+      }
+    }
+  } catch (e) {
+    console.warn('[Resolve] Samehadaku error:', e.message);
+  }
+
+  // 2. Try Otakudesu
+  try {
+    const odResults = await searchOtakudesu(cleanTitle);
+    if (odResults.length > 0) {
+      const seriesEps = await getOtakudesuAnimeEpisodes(odResults[0].url);
+      const targetEp = seriesEps.find(e => e.number === ep) || seriesEps[0];
+      if (targetEp && targetEp.url) {
+        const streams = await getOtakudesuStreams(targetEp.url);
+        if (streams.length > 0) return streams;
+      }
+    }
+  } catch (e) {
+    console.warn('[Resolve] Otakudesu error:', e.message);
+  }
+
+  return [];
 }
 
 module.exports = {
@@ -444,5 +561,6 @@ module.exports = {
   getOtakudesuOngoing,
   searchOtakudesu,
   getOtakudesuAnimeEpisodes,
-  getOtakudesuStreams
+  getOtakudesuStreams,
+  resolveStreamByTitle
 };

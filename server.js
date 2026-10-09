@@ -438,29 +438,28 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // Scraper Stream Extractors (Samehadaku Blogger/Mega, Otakudesu Odvidhide)
+  // Scraper Stream Extractors (Samehadaku Full HD, Otakudesu, Auto-Resolver)
   if (pathname === '/api/scrapers/streams') {
     const source = requestUrl.searchParams.get('source') || 'samehadaku';
     const targetUrl = requestUrl.searchParams.get('url') || '';
+    const title = requestUrl.searchParams.get('title') || '';
+    const episode = requestUrl.searchParams.get('episode') || '1';
     let streams = [];
 
     try {
-      if (source.includes('samehadaku')) {
+      if (targetUrl && source.includes('samehadaku')) {
         streams = await scraper.getSamehadakuStreams(targetUrl);
-      } else if (source.includes('otakudesu')) {
+      } else if (targetUrl && source.includes('otakudesu')) {
         streams = await scraper.getOtakudesuStreams(targetUrl);
+      }
+
+      // Auto-resolve stream by title for AniList or other sources
+      if (streams.length === 0 && title) {
+        streams = await scraper.resolveStreamByTitle(title, episode);
       }
     } catch (err) {
       console.warn('Scraper stream error:', err.message);
     }
-
-    // Always provide fast direct local stream option
-    streams.unshift({
-      server: '⚡ OtakuVerse HD CDN (Direct Offline)',
-      url: '/media/sample.mp4',
-      type: 'video',
-      quality: '1080p'
-    });
 
     res.writeHead(200, { 'Content-Type': 'application/json' });
     res.end(JSON.stringify({ success: true, streams }));
