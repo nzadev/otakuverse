@@ -178,7 +178,7 @@ function transformMedia(item) {
       duration: '24:00',
       video: videoFileUrl,
       trailerId: trailerId,
-      releaseDate: item.seasonYear ? `${item.season || 'Season'} ${item.seasonYear}` : '2024'
+      releaseDate: item.seasonYear ? `${item.season || 'Season'} ${item.seasonYear}` : '2026'
     });
   }
 
@@ -193,7 +193,7 @@ function transformMedia(item) {
     rating: item.averageScore ? (item.averageScore / 10) : 8.0,
     status: statusStr,
     episodesCount: episodesCount,
-    year: item.seasonYear || 2024,
+    year: item.seasonYear || 2026,
     studio: studio,
     season: `${item.season || ''} ${item.seasonYear || ''}`.trim(),
     badge: item.averageScore >= 85 ? 'Masterpiece' : (item.status === 'RELEASING' ? 'Trending' : 'Populer'),

@@ -603,9 +603,35 @@ async function getSamehadakuEpisodes(targetUrl) {
 // ==========================================================================
 // 2. OTAKUDESU LIVE SCRAPER (otakudesu.blog)
 // ==========================================================================
-const OTAKUDESU_BASE = 'https://otakudesu.blog';
+let OTAKUDESU_BASE = 'https://otakudesu.blog';
+const OTAKUDESU_DOMAINS = [
+  'https://otakudesu.blog',
+  'https://otakudesu.io',
+  'https://otakudesu.cloud',
+  'https://otakudesu.net'
+];
+
+async function ensureOtakudesuDomain() {
+  try {
+    const res = await fetchCurl(OTAKUDESU_BASE);
+    if (!res || res.includes('cloudflare') || res.includes('Just a moment...')) throw new Error('Blocked');
+    return;
+  } catch (e) {
+    for (const domain of OTAKUDESU_DOMAINS) {
+      if (domain === OTAKUDESU_BASE) continue;
+      try {
+        const res = await fetchCurl(domain);
+        if (res && !res.includes('cloudflare') && !res.includes('Just a moment...')) {
+          OTAKUDESU_BASE = domain;
+          return;
+        }
+      } catch (err) {}
+    }
+  }
+}
 
 async function getOtakudesuOngoing(page = 1) {
+  await ensureOtakudesuDomain();
   const p = parseInt(page, 10) || 1;
   const targetUrl = p === 1 ? `${OTAKUDESU_BASE}/ongoing-anime/` : `${OTAKUDESU_BASE}/ongoing-anime/page/${p}/`;
   const html = await fetchCurl(targetUrl);
@@ -658,6 +684,7 @@ async function getOtakudesuOngoing(page = 1) {
 }
 
 async function searchOtakudesu(query) {
+  await ensureOtakudesuDomain();
   const html = await fetchCurl(`${OTAKUDESU_BASE}/?s=${encodeURIComponent(query)}&post_type=anime`);
   const items = [];
 
@@ -704,10 +731,11 @@ async function searchOtakudesu(query) {
 }
 
 async function getOtakudesuAnimeEpisodes(animeUrl) {
+  await ensureOtakudesuDomain();
   const html = await fetchCurl(animeUrl);
   const episodes = [];
 
-  const matches = [...html.matchAll(/<a href="(https:\/\/otakudesu\.blog\/episode\/[^"]+)"[^>]*>([^<]+)<\/a>/g)];
+  const matches = [...html.matchAll(/<a href="(https:\/\/[^\/]+\/episode\/[^"]+)"[^>]*>([^<]+)<\/a>/g)];
   for (const m of matches) {
     const epUrl = m[1];
     const epTitle = m[2].trim();

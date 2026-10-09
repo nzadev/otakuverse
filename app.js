@@ -128,6 +128,13 @@ const DOM = {
   sortEpisodesLabel: document.getElementById('sortEpisodesLabel'),
   detailEpisodesGrid: document.getElementById('detailEpisodesGrid'),
 
+  // Download Modal
+  downloadModal: document.getElementById('downloadModal'),
+  btnCloseDownloadModal: document.getElementById('btnCloseDownloadModal'),
+  downloadModalTitle: document.getElementById('downloadModalTitle'),
+  downloadModalLoading: document.getElementById('downloadModalLoading'),
+  downloadModalContent: document.getElementById('downloadModalContent'),
+
   // Player Modal
   playerModal: document.getElementById('playerModal'),
   videoContainer: document.getElementById('videoContainer'),
@@ -171,9 +178,50 @@ const DOM = {
 // ==========================================================================
 // APPLICATION INITIALIZATION
 // ==========================================================================
+// PWA Install Prompt State
+let deferredPrompt;
+
 document.addEventListener('DOMContentLoaded', () => {
   init();
+  initPWA();
 });
+
+function initPWA() {
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then(reg => console.log('Service Worker registered', reg))
+      .catch(err => console.error('Service Worker registration failed', err));
+  }
+
+  const installBtn = document.getElementById('btnInstallAppSidebar');
+  
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    if (installBtn) {
+      installBtn.classList.remove('hidden');
+    }
+  });
+
+  if (installBtn) {
+    installBtn.addEventListener('click', async () => {
+      if (deferredPrompt) {
+        deferredPrompt.prompt();
+        const { outcome } = await deferredPrompt.userChoice;
+        if (outcome === 'accepted') {
+          console.log('User accepted the install prompt');
+        }
+        deferredPrompt = null;
+        installBtn.classList.add('hidden');
+      }
+    });
+  }
+
+  window.addEventListener('appinstalled', () => {
+    if (installBtn) installBtn.classList.add('hidden');
+    showToast('Aplikasi berhasil diinstal!');
+  });
+}
 
 async function init() {
   setupNavigation();
@@ -795,22 +843,135 @@ function renderDetailEpisodes() {
         <div class="ep-card-num">Episode ${ep.number} ${watchedTag}</div>
         <div class="ep-card-sub">${escapeHtml(ep.title || `Episode ${ep.number}`)} &bull; ${ep.duration || '24m'} &bull; HD Direct</div>
       </div>
-      <div class="ep-card-play-btn">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
-          <polygon points="5 3 19 12 5 21 5 3"></polygon>
-        </svg>
+      <div class="ep-card-actions">
+        <button type="button" class="ep-dl-btn" title="Download Episode" aria-label="Download">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </button>
+        <div class="ep-card-play-btn">
+          <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </div>
       </div>
     `;
 
-    epCard.addEventListener('click', () => {
-      // Find actual index in original array
+    // Handle clicks inside card
+    epCard.addEventListener('click', (e) => {
       const realIndex = episodes.findIndex(item => item.number === ep.number);
+      
+      // If clicked download button
+      const dlBtn = e.target.closest('.ep-dl-btn');
+      if (dlBtn) {
+        e.stopPropagation(); // prevent play
+        openDownloadModal(anime, realIndex !== -1 ? realIndex : 0);
+        return;
+      }
+      
+      // Default: Play Episode
       openPlayer(anime, realIndex !== -1 ? realIndex : 0);
     });
 
     DOM.detailEpisodesGrid.appendChild(epCard);
   });
 }
+
+// ==========================================================================
+// DOWNLOAD EPISODE MODAL
+// ==========================================================================
+async function openDownloadModal(anime, epIndex) {
+  const episodes = anime.episodes || [];
+  const ep = episodes[epIndex] || {
+    number: epIndex + 1,
+    title: `Episode ${epIndex + 1}`,
+    url: anime.url || ''
+  };
+
+  DOM.downloadModalTitle.textContent = `Download: ${anime.title} - Episode ${ep.number}`;
+  DOM.downloadModal.classList.add('active');
+  DOM.downloadModal.setAttribute('aria-hidden', 'false');
+  document.body.style.overflow = 'hidden';
+  
+  DOM.downloadModalLoading.classList.remove('hidden');
+  DOM.downloadModalContent.classList.add('hidden');
+  DOM.downloadModalContent.innerHTML = '';
+
+  let fetchUrl = ep.url;
+  let epSource = 'samehadaku';
+  
+  if (anime.source === 'otakudesu' || (fetchUrl && fetchUrl.includes('otakudesu'))) {
+    epSource = 'otakudesu';
+  } else if (!fetchUrl && anime.id) {
+    epSource = 'anilist';
+    fetchUrl = `/media/anime_${anime.id}.mp4`;
+  }
+
+  try {
+    let streams = [];
+    if (epSource === 'anilist') {
+      streams = [{ resolution: '1080p', url: fetchUrl }];
+    } else {
+      const res = await fetch(`/api/scrapers/stream-proxy?source=${epSource}&url=${encodeURIComponent(fetchUrl)}`);
+      const data = await res.json();
+      if (data.success && data.streams) {
+        streams = data.streams;
+      } else {
+        throw new Error(data.error || 'No streams found');
+      }
+    }
+
+    DOM.downloadModalLoading.classList.add('hidden');
+    DOM.downloadModalContent.classList.remove('hidden');
+
+    if (streams.length === 0) {
+      DOM.downloadModalContent.innerHTML = '<p style="color: #ef4444; padding: 20px; text-align: center;">Maaf, link download tidak tersedia saat ini.</p>';
+      return;
+    }
+
+    streams.forEach(stream => {
+      const btn = document.createElement('a');
+      btn.className = 'download-link-btn';
+      btn.href = stream.url;
+      btn.target = '_blank';
+      btn.rel = 'noopener noreferrer';
+      btn.download = `${anime.title}_Ep${ep.number}_${stream.resolution}.mp4`;
+      btn.innerHTML = `
+        <div class="dl-res">${stream.resolution}</div>
+        <div class="dl-icon">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+        </div>
+      `;
+      DOM.downloadModalContent.appendChild(btn);
+    });
+
+  } catch (error) {
+    console.error('Download fetch error:', error);
+    DOM.downloadModalLoading.classList.add('hidden');
+    DOM.downloadModalContent.classList.remove('hidden');
+    DOM.downloadModalContent.innerHTML = '<p style="color: #ef4444; padding: 20px; text-align: center;">Gagal memuat daftar download. Silakan coba lagi nanti.</p>';
+  }
+}
+
+DOM.btnCloseDownloadModal.addEventListener('click', () => {
+  DOM.downloadModal.classList.remove('active');
+  DOM.downloadModal.setAttribute('aria-hidden', 'true');
+  document.body.style.overflow = '';
+});
+
+DOM.downloadModal.addEventListener('click', (e) => {
+  if (e.target === DOM.downloadModal) {
+    DOM.downloadModal.classList.remove('active');
+    DOM.downloadModal.setAttribute('aria-hidden', 'true');
+    document.body.style.overflow = '';
+  }
+});
 
 // ==========================================================================
 // CINEMA VIDEO PLAYER (MPV HUD Experience)
