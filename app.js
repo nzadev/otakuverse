@@ -738,15 +738,17 @@ function openAnimeDetails(anime) {
   DOM.detailTotalEps.textContent = `${totalEps} Episode`;
   DOM.detailType.textContent = anime.type || 'TV Series';
   
-  if (anime.nextAiringEpisode && anime.nextAiringEpisode.airingAt) {
-    const airDate = new Date(anime.nextAiringEpisode.airingAt * 1000);
-    const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    const dayName = days[airDate.getDay()];
-    const timeStr = airDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-    DOM.detailSchedule.textContent = `📅 Eps ${anime.nextAiringEpisode.episode}: ${dayName}, ${timeStr} WIB`;
-    DOM.detailSchedule.style.display = 'inline-flex';
-  } else {
-    DOM.detailSchedule.style.display = 'none';
+  if (DOM.detailSchedule) {
+    if (anime.nextAiringEpisode && anime.nextAiringEpisode.airingAt) {
+      const airDate = new Date(anime.nextAiringEpisode.airingAt * 1000);
+      const days = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+      const dayName = days[airDate.getDay()];
+      const timeStr = airDate.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+      DOM.detailSchedule.textContent = `📅 Eps ${anime.nextAiringEpisode.episode}: ${dayName}, ${timeStr} WIB`;
+      DOM.detailSchedule.style.display = 'inline-flex';
+    } else {
+      DOM.detailSchedule.style.display = 'none';
+    }
   }
 
   DOM.detailSynopsis.textContent = anime.synopsis || 'Tidak ada sinopsis tersedia untuk anime ini.';
