@@ -1141,11 +1141,26 @@ async function openPlayer(anime, epIndex = 0) {
         } else if (bestStream.type === 'external') {
           window.open(bestStream.url, '_blank');
           showToast(`🔗 Membuka link eksternal: ${bestStream.server}`);
-          // Load trailer as fallback in player if available, else close
+          // Load trailer as fallback in player if available, else show a placeholder poster
           if (anime.trailer_url) {
             loadIframeStream(anime.trailer_url, 'Trailer Resmi');
           } else {
-            closePlayer();
+            DOM.mainVideoPlayer.pause();
+            DOM.mainVideoPlayer.classList.add('hidden');
+            DOM.trailerPlayerIframe.classList.add('hidden');
+            DOM.videoContainer.classList.add('in-iframe-mode');
+            DOM.centerPlayButton.style.display = 'none';
+            if (DOM.btnDownloadStream) DOM.btnDownloadStream.classList.add('hidden');
+            
+            // Show a placeholder graphic/text instead of closing
+            DOM.videoContainer.style.background = `url('${anime.coverImage.extraLarge || anime.bannerImage}') center/cover no-repeat`;
+            DOM.videoContainer.innerHTML += `
+              <div id="externalPlaceholder" style="position: absolute; inset: 0; background: rgba(15,23,42,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;">
+                <div style="font-size: 3rem; margin-bottom: 16px;">🔗</div>
+                <div style="font-size: 1.2rem; font-weight: bold; color: #fff; text-align: center; padding: 0 20px;">Menonton di Tab Baru</div>
+                <div style="font-size: 0.9rem; color: #cbd5e1; margin-top: 8px; text-align: center; padding: 0 20px;">Situs ini telah dibuka di browser Anda karena diblokir dari dalam aplikasi.</div>
+              </div>
+            `;
           }
         } else {
           loadNativeVideo(bestStream.url);
@@ -1170,6 +1185,9 @@ async function openPlayer(anime, epIndex = 0) {
 }
 
 function loadNativeVideo(srcUrl) {
+  const ph = document.getElementById('externalPlaceholder');
+  if (ph) ph.remove();
+  DOM.videoContainer.style.background = '';
   DOM.videoContainer.classList.remove('in-iframe-mode');
   DOM.trailerPlayerIframe.classList.add('hidden');
   DOM.trailerPlayerIframe.src = '';
@@ -1197,6 +1215,9 @@ function loadNativeVideo(srcUrl) {
 }
 
 function loadIframeStream(embedUrl, label = 'Stream Iframe') {
+  const ph = document.getElementById('externalPlaceholder');
+  if (ph) ph.remove();
+  DOM.videoContainer.style.background = '';
   DOM.mainVideoPlayer.pause();
   DOM.mainVideoPlayer.classList.add('hidden');
   DOM.videoContainer.classList.add('in-iframe-mode');
@@ -1312,6 +1333,9 @@ function switchStreamQuality(qualityVal) {
 }
 
 function closePlayer() {
+  const ph = document.getElementById('externalPlaceholder');
+  if (ph) ph.remove();
+  DOM.videoContainer.style.background = '';
   DOM.mainVideoPlayer.pause();
   DOM.mainVideoPlayer.src = '';
   DOM.trailerPlayerIframe.src = '';
