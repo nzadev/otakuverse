@@ -1153,14 +1153,15 @@ async function openPlayer(anime, epIndex = 0) {
             if (DOM.btnDownloadStream) DOM.btnDownloadStream.classList.add('hidden');
             
             // Show a placeholder graphic/text instead of closing
-            DOM.videoContainer.style.background = `url('${anime.coverImage.extraLarge || anime.bannerImage}') center/cover no-repeat`;
-            DOM.videoContainer.innerHTML += `
+            const fallbackBg = anime.backdrop || anime.poster || '';
+            DOM.videoContainer.style.background = `url('${fallbackBg}') center/cover no-repeat`;
+            DOM.videoContainer.insertAdjacentHTML('beforeend', `
               <div id="externalPlaceholder" style="position: absolute; inset: 0; background: rgba(15,23,42,0.85); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10;">
                 <div style="font-size: 3rem; margin-bottom: 16px;">🔗</div>
                 <div style="font-size: 1.2rem; font-weight: bold; color: #fff; text-align: center; padding: 0 20px;">Menonton di Tab Baru</div>
                 <div style="font-size: 0.9rem; color: #cbd5e1; margin-top: 8px; text-align: center; padding: 0 20px;">Situs ini telah dibuka di browser Anda karena diblokir dari dalam aplikasi.</div>
               </div>
-            `;
+            `);
           }
         } else {
           loadNativeVideo(bestStream.url);
