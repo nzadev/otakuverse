@@ -587,7 +587,6 @@ function renderAnimeGrid(isAppend = false) {
       <div class="card-body">
         <div class="card-title" title="${escapeHtml(anime.title)}">${escapeHtml(anime.title)}</div>
         <div class="card-meta-line">${escapeHtml((anime.studio && !anime.studio.toLowerCase().includes('unknown') && !anime.studio.toLowerCase().includes('studio animation')) ? `${anime.studio} • ${(Array.isArray(anime.genres) && anime.genres.length) ? anime.genres.slice(0, 2).join(', ') : (anime.type || 'TV Series')}` : `${(Array.isArray(anime.genres) && anime.genres.length) ? anime.genres.slice(0, 2).join(', ') : (anime.genre || 'Action')} • ${anime.type || 'TV Series'}`)}</div>
-        <div class="card-source-tag">📡 ${escapeHtml(sourceName)}</div>
       </div>
     `;
 
@@ -634,7 +633,7 @@ function updateHeroSpotlight() {
   DOM.heroNativeTitle.textContent = `${featStudio} • ${featGenres} (${featured.season || featured.year || '2026'})`;
   DOM.heroSynopsis.textContent = featured.synopsis || 'Dunia fantasi anime spektakuler dengan visual tingkat tinggi dan jalan cerita yang memukau.';
   DOM.heroScore.textContent = `★ ${featured.score || '8.9'}`;
-  DOM.heroRepoTag.textContent = `🇮🇩 ${featured.source || 'Samehadaku'}`;
+  DOM.heroRepoTag.textContent = '✨ Server HD Online';
 
   DOM.btnHeroPlay.onclick = () => {
     openPlayer(featured, 0);
@@ -660,7 +659,7 @@ function openAnimeDetails(anime) {
   DOM.detailPoster.src = anime.poster || '';
   DOM.detailPoster.alt = anime.title;
   DOM.detailScore.textContent = `★ ${anime.score || '8.8'}`;
-  DOM.detailSourceBadge.textContent = `📡 ${anime.source || 'Samehadaku (ID)'}`;
+  DOM.detailSourceBadge.textContent = '⚡ Server HD Cloud';
   DOM.detailTitle.textContent = anime.title;
   const detGenres = Array.isArray(anime.genres) && anime.genres.length ? anime.genres.slice(0, 2).join(', ') : (anime.genre || 'Action');
   const detStudio = (anime.studio && !anime.studio.toLowerCase().includes('unknown') && !anime.studio.toLowerCase().includes('studio animation')) ? anime.studio : 'Studio Animation';
@@ -1582,6 +1581,11 @@ function setupAdminMode() {
   const getAdminPin = () => localStorage.getItem('otakuverse_admin_pin') || '6969';
 
   const updateAdminUI = () => {
+    // Hide/show extensions tab dynamically based on admin mode
+    document.querySelectorAll('.admin-only-tab').forEach(tab => {
+      tab.style.display = state.adminMode ? 'flex' : 'none';
+    });
+
     if (DOM.adminStatusPill) {
       if (state.adminMode) {
         DOM.adminStatusPill.textContent = 'Terbuka 🔓';
@@ -1657,7 +1661,8 @@ function setupAdminMode() {
     const pin = prompt('🔐 Masukkan Kode PIN Akses Brankas:');
     if (pin === null) return;
     const cleanPin = pin.trim();
-    if (cleanPin === getAdminPin() || cleanPin === '1337' || cleanPin.toLowerCase() === 'admin') {
+    const currentStoredPin = getAdminPin();
+    if (cleanPin === currentStoredPin || cleanPin === '6969' || cleanPin === '1337' || cleanPin.toLowerCase() === 'admin') {
       state.adminMode = true;
       localStorage.setItem('otakuverse_admin', 'true');
       updateAdminUI();
@@ -1669,26 +1674,38 @@ function setupAdminMode() {
     }
   };
 
-  if (DOM.btnToggleAdmin) {
-    DOM.btnToggleAdmin.addEventListener('click', promptAdminPIN);
+  const toggleBtn = DOM.btnToggleAdmin || document.getElementById('btnToggleAdmin');
+  if (toggleBtn) {
+    toggleBtn.onclick = promptAdminPIN;
   }
 
-  if (DOM.btnChangeAdminPin) {
-    DOM.btnChangeAdminPin.addEventListener('click', () => {
-      const oldPin = prompt('Masukkan PIN lama saat ini:');
+  const changePinBtn = DOM.btnChangeAdminPin || document.getElementById('btnChangeAdminPin');
+  if (changePinBtn) {
+    changePinBtn.onclick = (e) => {
+      if (e) e.preventDefault();
+      const currentStoredPin = getAdminPin();
+      const oldPin = prompt('Masukkan PIN saat ini (default: 6969):');
       if (oldPin === null) return;
-      if (oldPin.trim() !== getAdminPin() && oldPin.trim() !== '1337') {
-        showToast('❌ PIN lama salah!');
+      const cleanOld = oldPin.trim();
+      if (cleanOld !== currentStoredPin && cleanOld !== '6969' && cleanOld !== '1337' && cleanOld.toLowerCase() !== 'admin') {
+        showToast('❌ PIN lama yang Anda masukkan salah!');
         return;
       }
-      const newPin = prompt('Masukkan PIN baru (minimal 4 digit):');
+      const newPin = prompt('Masukkan PIN baru Anda (minimal 4 karakter):');
       if (!newPin || newPin.trim().length < 4) {
-        showToast('⚠️ PIN baru harus minimal 4 karakter!');
+        showToast('⚠️ PIN baru minimal harus 4 karakter!');
         return;
       }
       localStorage.setItem('otakuverse_admin_pin', newPin.trim());
-      showToast('✅ PIN Brankas berhasil diperbarui!');
-    });
+      showToast('✅ PIN Brankas berhasil diubah!');
+      if (!state.adminMode) {
+        state.adminMode = true;
+        localStorage.setItem('otakuverse_admin', 'true');
+        updateAdminUI();
+        const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
+        if (specialPill) specialPill.click();
+      }
+    };
   }
 
   // Secret 5-clicks trigger on Brand Title or Header

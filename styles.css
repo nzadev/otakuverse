@@ -805,10 +805,7 @@ body {
 }
 
 .card-source-tag {
-  margin-top: 4px;
-  font-size: 0.68rem;
-  font-weight: 700;
-  color: var(--accent-cyan);
+  display: none !important;
 }
 
 /* Load more */

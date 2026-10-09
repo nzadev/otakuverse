@@ -50,7 +50,7 @@
           <span class="sidebar-badge" id="sidebarLibraryCount">0</span>
         </button>
 
-        <button type="button" class="nav-item" data-tab="extensions">
+        <button type="button" class="nav-item admin-only-tab" data-tab="extensions" id="navItemExtensions" style="display: none;">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
             <polyline points="14 2 14 8 20 8"></polyline>
@@ -75,7 +75,7 @@
       <div class="sidebar-footer">
         <div class="active-source-chip" id="sidebarActiveSource">
           <span class="source-dot">●</span>
-          <span class="source-text">Samehadaku (ID)</span>
+          <span class="source-text">Server Utama (HD)</span>
         </div>
         <div class="sidebar-shortcut-hint">
           <kbd>/</kbd> Cari &bull; <kbd>Space</kbd> Play
@@ -101,7 +101,7 @@
         <span class="bottom-badge" id="bottomLibraryCount">0</span>
       </button>
 
-      <button type="button" class="bottom-nav-item" data-tab="extensions">
+      <button type="button" class="bottom-nav-item admin-only-tab" data-tab="extensions" id="bottomNavExtensions" style="display: none;">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
           <polyline points="14 2 14 8 20 8"></polyline>
@@ -142,11 +142,11 @@
           <!-- Source / Ext Scraper Selector -->
           <div class="source-selector-pill">
             <span class="source-icon">📡</span>
-            <select id="sourceSelectDropdown" aria-label="Pilih Sumber Anime">
-              <option value="samehadaku" selected>⚡ Samehadaku (ID) • 1080p FHD</option>
-              <option value="otakudesu">🌸 Otakudesu (ID) • 720p HD</option>
-              <option value="kuramanime">🦊 Kuramanime (ID) • Mirror</option>
-              <option value="all">🌐 AniList Universal • Key Visual HD</option>
+            <select id="sourceSelectDropdown" aria-label="Pilih Server Video">
+              <option value="samehadaku" selected>⚡ Server Alpha (1080p FHD)</option>
+              <option value="otakudesu">🌸 Server Beta (720p HD)</option>
+              <option value="kuramanime">🦊 Server Gamma (Fast Mirror)</option>
+              <option value="all">🌐 Server Global (AniList HD)</option>
             </select>
           </div>
         </div>
@@ -424,25 +424,17 @@
                 <span class="setting-title">Akses Fitur Pengembang &amp; Brankas Khusus</span>
                 <span class="setting-desc">Buka kunci fitur stream injector, unduh video, dan koleksi tayangan malam</span>
               </div>
-              <div class="setting-control" style="display: flex; gap: 8px;">
-                <button type="button" class="cta-btn secondary-cta" id="btnToggleAdmin" style="border-color: rgba(139, 92, 246, 0.4);">
+              <div class="setting-control" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="cta-btn secondary-cta" id="btnChangeAdminPin" style="border-color: rgba(139, 92, 246, 0.4); padding: 8px 14px;">
+                  <span>⚙️ Ganti PIN</span>
+                </button>
+                <button type="button" class="cta-btn primary-cta" id="btnToggleAdmin" style="border-color: rgba(139, 92, 246, 0.4); padding: 8px 14px;">
                   <span id="btnToggleAdminText">🔑 Buka Kunci Akses</span>
                 </button>
               </div>
             </div>
 
             <div id="adminControlsArea" class="hidden" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;">
-              <div class="setting-row" style="margin-bottom: 14px;">
-                <div class="setting-info">
-                  <span class="setting-title">Ganti Kode PIN Keamanan</span>
-                  <span class="setting-desc">Ubah PIN akses brankas sesuai keinginan lo</span>
-                </div>
-                <div class="setting-control" style="display: flex; gap: 6px;">
-                  <button type="button" class="cta-btn secondary-cta" id="btnChangeAdminPin" style="padding: 6px 12px; font-size: 0.8rem;">
-                    ⚙️ Ganti PIN
-                  </button>
-                </div>
-              </div>
 
               <div class="setting-row">
                 <div class="setting-info">
@@ -739,6 +731,6 @@
   <!-- Toast Notification -->
   <div class="toast-notification" id="toastNotice" role="alert"></div>
 
-  <script src="app.js?v=3.9.6"></script>
+  <script src="app.js?v=3.9.7"></script>
 </body>
 </html>

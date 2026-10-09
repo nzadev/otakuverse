@@ -521,7 +521,10 @@ const server = http.createServer(async (req, res) => {
         specialItems = JSON.parse(fs.readFileSync(specialFile, 'utf8'));
       } catch (e) {}
     }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.writeHead(200, {
+      'Content-Type': 'application/json',
+      'Cache-Control': 'no-cache, no-store, must-revalidate'
+    });
     res.end(JSON.stringify({ success: true, count: specialItems.length, items: specialItems }));
     return;
   }
@@ -544,12 +547,15 @@ const server = http.createServer(async (req, res) => {
           specialItems = JSON.parse(fs.readFileSync(specialFile, 'utf8'));
         } catch (e) {}
       }
-      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.writeHead(200, {
+        'Content-Type': 'application/json',
+        'Cache-Control': 'no-cache, no-store, must-revalidate'
+      });
       res.end(JSON.stringify({
         success: true,
         count: specialItems.length,
         items: specialItems,
-        source: 'Vault 18+ (VIP)',
+        source: 'Late Night Vault',
         pageInfo: { hasNextPage: false, currentPage: 1 }
       }));
       return;
