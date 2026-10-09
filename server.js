@@ -575,9 +575,22 @@ const server = http.createServer(async (req, res) => {
         }));
         return;
       } catch (err) {
-        console.warn('Samehadaku scraper error, fallback to AniList:', err.message);
+        console.warn('Samehadaku scraper error, fallback to Otakudesu:', err.message);
+        try {
+          const items = search ? await scraper.searchOtakudesu(search) : await scraper.getOtakudesuOngoing(page);
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({
+            success: true,
+            count: items.length,
+            items: items,
+            source: 'Otakudesu (Auto-Fallback)',
+            pageInfo: { hasNextPage: !search && items.length > 0, currentPage: parseInt(page, 10) || 1 }
+          }));
+          return;
+        } catch (err2) {
+          console.warn('Otakudesu auto-fallback error, fallback to AniList:', err2.message);
+        }
       }
-    }
 
     // Route to live Otakudesu scraper
     if (source === 'otakudesu') {

@@ -2046,6 +2046,7 @@ function setupEventListeners() {
 
   DOM.mainVideoPlayer.addEventListener('waiting', () => {
     DOM.videoContainer.classList.add('is-buffering');
+    DOM.centerPlayIcon.innerHTML = '<circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="3" stroke-dasharray="16 16" stroke-linecap="round"><animateTransform attributeName="transform" type="rotate" from="0 12 12" to="360 12 12" dur="1s" repeatCount="indefinite"/></circle>';
     if (state.settings.autoFallback) {
       clearTimeout(bufferingTimeout);
       bufferingTimeout = setTimeout(() => {
@@ -2057,6 +2058,7 @@ function setupEventListeners() {
   });
   DOM.mainVideoPlayer.addEventListener('playing', () => {
     DOM.videoContainer.classList.remove('is-buffering');
+    DOM.centerPlayIcon.innerHTML = DOM.mainVideoPlayer.paused ? '<polygon points="5 3 19 12 5 21 5 3"></polygon>' : '<rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect>';
     clearTimeout(bufferingTimeout);
     updatePlayIcons(true);
   });
