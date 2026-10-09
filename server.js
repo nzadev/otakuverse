@@ -591,6 +591,7 @@ const server = http.createServer(async (req, res) => {
           console.warn('Otakudesu auto-fallback error, fallback to AniList:', err2.message);
         }
       }
+    }
 
     // Route to live Otakudesu scraper
     if (source === 'otakudesu') {
