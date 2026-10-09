@@ -1139,6 +1139,12 @@ async function openPlayer(anime, epIndex = 0) {
 
     for (const src of sourcesToTry) {
       queryParams.set('source', src);
+      if (src !== state.selectedSource) {
+        queryParams.delete('url'); // Don't pass the old domain's URL to the new source
+      } else if (targetUrl) {
+        queryParams.set('url', targetUrl);
+      }
+      
       try {
         const res = await fetchWithTimeout(`/api/scrapers/streams?${queryParams.toString()}`, {}, 8000);
         const jsonData = await res.json();
