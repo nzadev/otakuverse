@@ -2127,3 +2127,40 @@ input:checked + .slider:before {
 }
 @keyframes spin { 100% { transform: rotate(360deg); } }
 
+
+/* Additional Mobile Responsiveness Fixes */
+@media (max-width: 860px) {
+  .anime-grid, .lib-grid, .search-grid {
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)) !important;
+    gap: 12px !important;
+  }
+  .anime-card-img {
+    height: 190px !important;
+  }
+}
+
+@media (max-width: 480px) {
+  .anime-grid, .lib-grid, .search-grid {
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)) !important;
+    gap: 8px !important;
+  }
+  .anime-card-img {
+    height: 160px !important;
+  }
+  .anime-card-title {
+    font-size: 0.85rem !important;
+  }
+  .hero-spotlight {
+    min-height: 250px !important;
+  }
+  .hero-title {
+    font-size: 1.3rem !important;
+  }
+  .nav-item {
+    font-size: 0.65rem !important;
+  }
+  .nav-item svg {
+    width: 20px !important;
+    height: 20px !important;
+  }
+}
