@@ -19,6 +19,7 @@ const state = {
 
   currentAnime: null,
   currentEpIndex: 0,
+  availableStreams: [],
   episodesAscending: true, // true: 1 -> N, false: N -> 1
   playbackSpeed: 1.0,
   aspectRatioIndex: 0, // 0: 16:9 (contain), 1: Layar Penuh (cover), 2: Renggang (fill)
@@ -892,6 +893,8 @@ async function openPlayer(anime, epIndex = 0) {
 
       const sortedStreams = [...data.streams].sort((a, b) => scoreStream(b) - scoreStream(a));
 
+      state.availableStreams = sortedStreams;
+
       DOM.serverSelect.innerHTML = '';
       sortedStreams.forEach((stream, idx) => {
         const opt = document.createElement('option');
@@ -900,6 +903,7 @@ async function openPlayer(anime, epIndex = 0) {
         opt.textContent = `${stream.server} ${tag}`;
         opt.dataset.url = stream.url;
         opt.dataset.type = stream.type || 'video';
+        opt.dataset.quality = stream.quality || '720p';
         DOM.serverSelect.appendChild(opt);
       });
 
@@ -909,21 +913,32 @@ async function openPlayer(anime, epIndex = 0) {
         trailerOpt.textContent = '🎬 Trailer Resmi (YT)';
         trailerOpt.dataset.url = anime.trailer_url;
         trailerOpt.dataset.type = 'iframe';
+        trailerOpt.dataset.quality = '1080p';
         DOM.serverSelect.appendChild(trailerOpt);
       }
 
-      const bestStream = sortedStreams[0];
+      // Populate & sync Quality dropdown based on available streams
+      const userPrefQ = (state.settings.defaultQuality || '720').toLowerCase().replace('p', '');
+      updateQualityOptions(sortedStreams, userPrefQ);
+
+      // Select initial stream matching preferred quality if available, otherwise first best stream
+      let bestStream = sortedStreams.find(s => (s.quality || '').toLowerCase() === `${userPrefQ}p` && s.type === 'video') ||
+                       sortedStreams.find(s => (s.quality || '').toLowerCase() === `${userPrefQ}p`) ||
+                       sortedStreams[0];
 
       if (bestStream) {
         const matchedOpt = Array.from(DOM.serverSelect.options).find(o => o.dataset.url === bestStream.url);
         if (matchedOpt) DOM.serverSelect.value = matchedOpt.value;
+
+        const bestQVal = (bestStream.quality || `${userPrefQ}p`).toLowerCase().replace('p', '');
+        if (DOM.qualitySelect) DOM.qualitySelect.value = bestQVal;
 
         if (bestStream.type === 'iframe') {
           loadIframeStream(bestStream.url, bestStream.server);
         } else {
           loadNativeVideo(bestStream.url);
         }
-        showToast(`⚡ Memutar kualitas terbaik: ${bestStream.server}`);
+        showToast(`⚡ Memutar resolusi ${bestStream.quality || 'HD'}: ${bestStream.server}`);
       }
     } else {
       if (anime.trailer_url) {
@@ -979,6 +994,98 @@ function loadIframeStream(embedUrl, label = 'Stream Iframe') {
 
 function loadTrailerIframe(trailerUrl) {
   loadIframeStream(trailerUrl, 'Trailer Resmi');
+}
+
+function updateQualityOptions(streams, preferredQuality) {
+  if (!DOM.qualitySelect) return;
+  DOM.qualitySelect.innerHTML = '';
+
+  const qualityLabels = {
+    '1080': '1080p FHD',
+    '720': '720p HD',
+    '480': '480p SD',
+    '360': '360p Hemat'
+  };
+
+  const streamQualities = new Set();
+  (streams || []).forEach(s => {
+    if (s.quality) {
+      streamQualities.add(s.quality.toLowerCase().replace('p', ''));
+    }
+  });
+
+  const allPossible = ['1080', '720', '480', '360'];
+  allPossible.forEach(q => {
+    const isAvail = streamQualities.has(q);
+    const opt = document.createElement('option');
+    opt.value = q;
+    opt.textContent = isAvail ? (qualityLabels[q] || `${q}p`) : `${qualityLabels[q] || `${q}p`} (N/A)`;
+    if (!isAvail) {
+      opt.disabled = true;
+    }
+    DOM.qualitySelect.appendChild(opt);
+  });
+
+  // Select target quality: preferredQuality if available, else first available
+  const pref = String(preferredQuality || '720').toLowerCase().replace('p', '');
+  if (streamQualities.has(pref)) {
+    DOM.qualitySelect.value = pref;
+  } else {
+    const firstAvail = allPossible.find(q => streamQualities.has(q));
+    if (firstAvail) {
+      DOM.qualitySelect.value = firstAvail;
+    }
+  }
+}
+
+function switchStreamQuality(qualityVal) {
+  if (!state.availableStreams || !state.availableStreams.length) {
+    showToast(`⚠️ Tidak ada daftar resolusi aktif untuk episode ini`);
+    return;
+  }
+  const qStr = String(qualityVal).toLowerCase().replace('p', '');
+  const targetTag = `${qStr}p`;
+
+  // Find stream matching target quality:
+  // Prefer Direct MP4 video first, then cleanest iframe
+  let match = state.availableStreams.find(s => (s.quality || '').toLowerCase() === targetTag && s.type === 'video');
+  if (!match) {
+    match = state.availableStreams.find(s => (s.quality || '').toLowerCase() === targetTag);
+  }
+
+  // Fallback to closest available quality if exact match not found
+  if (!match) {
+    const qNum = parseInt(qStr, 10) || 720;
+    const sorted = [...state.availableStreams].sort((a, b) => {
+      const aNum = parseInt((a.quality || '720').replace('p', ''), 10) || 720;
+      const bNum = parseInt((b.quality || '720').replace('p', ''), 10) || 720;
+      return Math.abs(aNum - qNum) - Math.abs(bNum - qNum);
+    });
+    match = sorted[0];
+  }
+
+  if (match) {
+    // Sync server dropdown
+    const matchedOpt = Array.from(DOM.serverSelect.options).find(o => o.dataset.url === match.url);
+    if (matchedOpt) {
+      DOM.serverSelect.value = matchedOpt.value;
+    }
+    // Sync quality dropdown
+    const matchQ = (match.quality || `${qStr}p`).toLowerCase().replace('p', '');
+    DOM.qualitySelect.value = matchQ;
+    state.settings.defaultQuality = matchQ;
+    localStorage.setItem('otakuverse_quality', matchQ);
+    if (DOM.settingDefaultQuality) {
+      DOM.settingDefaultQuality.value = matchQ;
+    }
+
+    if (match.type === 'iframe') {
+      loadIframeStream(match.url, match.server);
+    } else {
+      loadNativeVideo(match.url);
+    }
+    showToast(`🎬 Resolusi beralih ke ${match.quality || targetTag} (${match.server})`);
+  }
 }
 
 function closePlayer() {
@@ -1611,6 +1718,15 @@ function setupEventListeners() {
     const streamUrl = selectedOpt.dataset.url;
     const streamType = selectedOpt.dataset.type;
     const serverName = selectedOpt.text;
+    const streamQuality = selectedOpt.dataset.quality;
+
+    if (streamQuality && DOM.qualitySelect) {
+      const qVal = streamQuality.toLowerCase().replace('p', '');
+      DOM.qualitySelect.value = qVal;
+      state.settings.defaultQuality = qVal;
+      localStorage.setItem('otakuverse_quality', qVal);
+      if (DOM.settingDefaultQuality) DOM.settingDefaultQuality.value = qVal;
+    }
 
     if (streamType === 'iframe') {
       loadIframeStream(streamUrl, serverName);
@@ -1625,7 +1741,7 @@ function setupEventListeners() {
 
   // Quality Switcher
   DOM.qualitySelect.addEventListener('change', (e) => {
-    showToast(`🎬 Resolusi dialihkan ke ${e.target.value}p`);
+    switchStreamQuality(e.target.value);
   });
 
   // HUD Idle Detection
