@@ -844,6 +844,9 @@ async function openPlayer(anime, epIndex = 0) {
   DOM.mainVideoPlayer.src = '';
   DOM.trailerPlayerIframe.src = '';
   DOM.centerPlayButton.style.display = 'none';
+  
+  // Show spinner immediately while resolving streams
+  DOM.videoContainer.classList.add('is-buffering');
 
   // Update Skip Intro Chip Text with configured seconds
   DOM.btnSkipIntro.querySelector('span').textContent = `⏩ Lewati Intro (+${state.settings.skipIntroTime}s)`;

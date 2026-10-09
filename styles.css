@@ -1677,7 +1677,8 @@ input:checked + .slider:before {
 }
 
 /* Hide center play button when playing */
-.video-container.is-playing .center-play-button {
+.video-container.is-playing .center-play-button,
+.video-container.is-buffering .center-play-button {
   opacity: 0;
   pointer-events: none;
   transform: scale(0.8);

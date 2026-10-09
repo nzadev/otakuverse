@@ -267,9 +267,38 @@ async function enrichItemsWithAniListCovers(items) {
 // ==========================================================================
 // 1. SAMEHADAKU LIVE SCRAPER (v2.samehadaku.how)
 // ==========================================================================
-const SAMEHADAKU_BASE = 'https://v2.samehadaku.how';
+let SAMEHADAKU_BASE = 'https://v2.samehadaku.how';
+const SAMEHADAKU_DOMAINS = [
+  'https://v2.samehadaku.how',
+  'https://samehadaku.email',
+  'https://samehadaku.care',
+  'https://samehadaku.day',
+  'https://194.31.53.112'
+];
+
+async function ensureSamehadakuDomain() {
+  try {
+    const res = await fetchCurl(SAMEHADAKU_BASE);
+    if (!res || res.includes('cloudflare') || res.includes('Just a moment...')) throw new Error('Blocked');
+    return;
+  } catch (e) {
+    console.warn(`[Domain Resolver] ${SAMEHADAKU_BASE} blocked/down. Testing fallbacks...`);
+    for (const domain of SAMEHADAKU_DOMAINS) {
+      if (domain === SAMEHADAKU_BASE) continue;
+      try {
+        const res = await fetchCurl(domain);
+        if (res && !res.includes('cloudflare') && !res.includes('Just a moment...')) {
+          SAMEHADAKU_BASE = domain;
+          console.log(`[Domain Resolver] Switched active domain to ${SAMEHADAKU_BASE}`);
+          return;
+        }
+      } catch (err) {}
+    }
+  }
+}
 
 async function getSamehadakuLatest(page = 1) {
+  await ensureSamehadakuDomain();
   const p = parseInt(page, 10) || 1;
   const startP = (p - 1) * 2 + 1;
   const endP = startP + 1;
@@ -346,6 +375,7 @@ async function getSamehadakuLatest(page = 1) {
 }
 
 async function searchSamehadaku(query) {
+  await ensureSamehadakuDomain();
   const html = await fetchCurl(`${SAMEHADAKU_BASE}/?s=${encodeURIComponent(query)}`);
   const items = [];
   const seenTitles = new Set();
@@ -399,6 +429,12 @@ async function searchSamehadaku(query) {
 }
 
 async function getSamehadakuStreams(episodeUrl) {
+  await ensureSamehadakuDomain();
+  try {
+    const urlObj = new URL(episodeUrl);
+    episodeUrl = SAMEHADAKU_BASE + urlObj.pathname + urlObj.search;
+  } catch(e) {}
+  
   const html = await fetchCurl(episodeUrl);
   const streams = [];
 
@@ -504,6 +540,12 @@ async function getSamehadakuStreams(episodeUrl) {
 }
 
 async function getSamehadakuEpisodes(targetUrl) {
+  await ensureSamehadakuDomain();
+  try {
+    const urlObj = new URL(targetUrl);
+    targetUrl = SAMEHADAKU_BASE + urlObj.pathname + urlObj.search;
+  } catch(e) {}
+  
   let html = await fetchCurl(targetUrl);
   const episodes = [];
 
