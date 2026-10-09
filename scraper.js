@@ -20,6 +20,8 @@ function fetchCurl(url, extraArgs = []) {
 
   return new Promise((resolve, reject) => {
     execFile('curl', [
+      '--doh-url', 'https://1.1.1.1/dns-query',
+      '-k',
       '-sL',
       '--max-time', '10',
       '-A', USER_AGENT,
@@ -32,6 +34,179 @@ function fetchCurl(url, extraArgs = []) {
       resolve(stdout);
     });
   });
+}
+
+// In-memory poster cache for AniList HD Key Visuals (1 hour TTL)
+const posterCache = new Map();
+
+function decodeHtmlEntities(str) {
+  if (!str) return '';
+  return str
+    .replace(/&#039;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&')
+    .replace(/&#8211;/g, '-')
+    .replace(/&#8212;/g, '-')
+    .replace(/&ndash;/g, '-')
+    .replace(/&mdash;/g, '-')
+    .replace(/&rsquo;/g, "'")
+    .replace(/&lsquo;/g, "'")
+    .replace(/&#8216;/g, "'")
+    .replace(/&#8217;/g, "'")
+    .trim();
+}
+
+function cleanTitleForPosterMatch(rawTitle) {
+  if (!rawTitle) return [];
+  const decoded = decodeHtmlEntities(rawTitle);
+
+  const noParen = decoded.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
+  const noEp = noParen.replace(/Episode\s*\d+/gi, '').replace(/\bEp\s*\d+/gi, '').trim();
+
+  const cands = [];
+  
+  // Base title without Season/S/Part suffixes
+  const base = noEp
+    .replace(/\s+(?:Season|S)\s*\d+/gi, '')
+    .replace(/\s+Part\s*\d+/gi, '')
+    .replace(/\s+(?:II|III|IV|V)\b/g, '')
+    .trim();
+  if (base) cands.push(base);
+  if (noEp && noEp !== base) cands.push(noEp);
+
+  // If title has a subtitle after colon or hyphen, try main title
+  const colonPart = base.split(/[:\-–—]/)[0].trim();
+  if (colonPart && colonPart.length >= 3 && colonPart !== base) {
+    cands.push(colonPart);
+  }
+
+  // Handle "Shin " prefix (e.g. "Shin Tennis no Oujisama" -> "Tennis no Ouji-sama")
+  if (base.toLowerCase().startsWith('shin ')) {
+    cands.push(base.slice(5).trim());
+  }
+
+  if (base.includes('Oujisama')) {
+    cands.push(base.replace(/Oujisama/g, 'Ouji-sama').split(/[:\-–—]/)[0].trim());
+    cands.push('Shin Tennis no Ouji-sama');
+  }
+
+  return [...new Set(cands.filter(c => c && c.length >= 2))];
+}
+
+async function warmupPosterCache() {
+  if (posterCache.size > 0) return;
+  try {
+    const query = `
+      query {
+        Page(page: 1, perPage: 50) {
+          media(type: ANIME, sort: [TRENDING_DESC, POPULARITY_DESC]) {
+            title { romaji english }
+            coverImage { extraLarge large }
+            bannerImage
+          }
+        }
+      }
+    `;
+    const res = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query })
+    });
+    if (res.ok) {
+      const payload = await res.json();
+      const mediaList = payload.data?.Page?.media || [];
+      for (const m of mediaList) {
+        const cover = m.coverImage?.extraLarge || m.coverImage?.large;
+        const banner = m.bannerImage || cover;
+        if (!cover) continue;
+        if (m.title?.romaji) {
+          cleanTitleForPosterMatch(m.title.romaji).forEach(c => {
+            posterCache.set(c.toLowerCase(), { poster: cover, backdrop: banner });
+          });
+        }
+        if (m.title?.english) {
+          cleanTitleForPosterMatch(m.title.english).forEach(c => {
+            posterCache.set(c.toLowerCase(), { poster: cover, backdrop: banner });
+          });
+        }
+      }
+    }
+  } catch (err) {
+    // ignore
+  }
+}
+
+// Warmup cache immediately in background
+warmupPosterCache();
+
+async function enrichItemsWithAniListCovers(items) {
+  if (!items || items.length === 0) return items;
+
+  // Ensure pre-warm has run
+  if (posterCache.size === 0) {
+    await warmupPosterCache();
+  }
+
+  // 1. Check in-memory cache first
+  const missing = [];
+  for (const item of items) {
+    const candidates = cleanTitleForPosterMatch(item.title);
+    let found = null;
+    for (const cand of candidates) {
+      const lower = cand.toLowerCase();
+      if (posterCache.has(lower)) {
+        found = posterCache.get(lower);
+        break;
+      }
+    }
+    if (found) {
+      item.poster = found.poster || item.poster;
+      item.backdrop = found.backdrop || item.backdrop;
+    } else {
+      missing.push({ item, candidate: candidates[0] || item.title });
+    }
+  }
+
+  // 2. If all matched from cache, return immediately (0ms)
+  if (missing.length === 0) return items;
+
+  // 3. Batched single-request query for all missing items (prevents 429 rate limit and 404 aborts!)
+  const batchQueries = [];
+  missing.forEach((m, idx) => {
+    const safeSearch = JSON.stringify(m.candidate);
+    batchQueries.push(`a${idx}: Page(page: 1, perPage: 1) { media(search: ${safeSearch}, type: ANIME) { title { romaji english } coverImage { extraLarge large } bannerImage } }`);
+  });
+
+  try {
+    const batchQuery = `query {\n${batchQueries.join('\n')}\n}`;
+    const res = await fetch('https://graphql.anilist.co', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query: batchQuery })
+    });
+    if (res.ok) {
+      const payload = await res.json();
+      const data = payload.data || {};
+      missing.forEach((m, idx) => {
+        const media = data[`a${idx}`]?.media?.[0];
+        if (media && media.coverImage) {
+          const hdCover = media.coverImage.extraLarge || media.coverImage.large;
+          const banner = media.bannerImage || hdCover;
+          if (hdCover) {
+            cleanTitleForPosterMatch(m.item.title).forEach(c => {
+              posterCache.set(c.toLowerCase(), { poster: hdCover, backdrop: banner });
+            });
+            m.item.poster = hdCover;
+            m.item.backdrop = banner;
+          }
+        }
+      });
+    }
+  } catch (err) {
+    // keep original poster on network error
+  }
+
+  return items;
 }
 
 // ==========================================================================
@@ -50,7 +225,7 @@ async function getSamehadakuLatest(page = 1) {
     const matches = [...content.matchAll(/<div class="thumb">\s*<a href="([^"]+)"\s*title="([^"]+)"[^>]*>[\s\S]*?<img [^>]*src="([^"]+)"/g)];
     for (const match of matches) {
       const fullUrl = match[1];
-      const rawTitle = match[2].replace(/&#039;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim();
+      const rawTitle = decodeHtmlEntities(match[2]);
       const poster = match[3];
 
       const numMatch = fullUrl.match(/episode-(\d+)/i) || rawTitle.match(/Episode\s*(\d+)/i);
@@ -102,6 +277,7 @@ async function getSamehadakuLatest(page = 1) {
     }
   }
 
+  await enrichItemsWithAniListCovers(items);
   return items;
 }
 
@@ -113,7 +289,7 @@ async function searchSamehadaku(query) {
 
   for (const match of matches) {
     const url = match[1];
-    const rawTitle = match[2].replace(/&#039;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&').trim();
+    const rawTitle = decodeHtmlEntities(match[2]);
     const poster = match[3];
     const slug = url.replace(SAMEHADAKU_BASE, '').replace(/^\/|\/$/g, '');
 
@@ -146,6 +322,7 @@ async function searchSamehadaku(query) {
     });
   }
 
+  await enrichItemsWithAniListCovers(items);
   return items;
 }
 
@@ -316,7 +493,7 @@ async function getOtakudesuOngoing(page = 1) {
   for (const match of matches) {
     const animeUrl = match[1];
     const poster = match[2];
-    const rawTitle = match[3].trim().replace(/&#039;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+    const rawTitle = decodeHtmlEntities(match[3]);
     const slug = animeUrl.replace(`${OTAKUDESU_BASE}/anime/`, '').replace(/\/$/, '');
 
     const idx = html.indexOf(animeUrl);
@@ -353,6 +530,7 @@ async function getOtakudesuOngoing(page = 1) {
     });
   }
 
+  await enrichItemsWithAniListCovers(items);
   return items;
 }
 
@@ -365,7 +543,7 @@ async function searchOtakudesu(query) {
   for (const match of matches) {
     const poster = match[1];
     const url = match[2];
-    const rawTitle = match[3].trim().replace(/&#039;/g, "'").replace(/&quot;/g, '"').replace(/&amp;/g, '&');
+    const rawTitle = decodeHtmlEntities(match[3]);
     const rating = parseFloat(match[4]) || 8.5;
     const slug = url.replace(`${OTAKUDESU_BASE}/anime/`, '').replace(/\/$/, '');
 
@@ -398,6 +576,7 @@ async function searchOtakudesu(query) {
     });
   }
 
+  await enrichItemsWithAniListCovers(items);
   return items;
 }
 

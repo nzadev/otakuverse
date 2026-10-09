@@ -51,51 +51,51 @@ const extensions = [
     name: 'Samehadaku',
     lang: 'ID',
     flag: '🇮🇩',
-    version: '1.4.2',
+    version: '2.0.0',
     author: 'Keiyoushi Community',
     icon: '⚡',
     status: 'installed',
     enabled: true,
-    description: 'Sumber fansub anime subtitle Indonesia tercepat & mirror HD',
-    baseUrl: 'https://samehadaku.email'
+    description: 'Sumber fansub anime Sub Indo tercepat (1080p FHD Direct MP4 & Poster HD AniList)',
+    baseUrl: 'https://v2.samehadaku.how'
   },
   {
     id: 'otakudesu',
     name: 'Otakudesu',
     lang: 'ID',
     flag: '🇮🇩',
-    version: '1.3.0',
+    version: '2.0.0',
     author: 'Keiyoushi Community',
     icon: '🌸',
     status: 'installed',
     enabled: true,
-    description: 'Koleksi anime lengkap tamat & ongoing bahasa Indonesia',
-    baseUrl: 'https://otakudesu.cloud'
+    description: 'Arsip anime lengkap tamat & ongoing Sub Indo (720p HD Direct MP4 & Mega)',
+    baseUrl: 'https://otakudesu.blog'
   },
   {
     id: 'kuramanime',
-    name: 'Kuramanime',
+    name: 'Kuramanime Mirror',
     lang: 'ID',
     flag: '🇮🇩',
-    version: '1.2.1',
+    version: '1.5.0',
     author: 'Keiyoushi Community',
     icon: '🦊',
     status: 'installed',
     enabled: true,
-    description: 'Streaming server resolusi 720p/1080p dengan audio jernih',
+    description: 'Mirror anime subtitle Indonesia 1080p/720p bebas buffering',
     baseUrl: 'https://kuramanime.pro'
   },
   {
     id: 'animeindo',
-    name: 'AnimeIndo',
+    name: 'AnimeIndo Mirror',
     lang: 'ID',
     flag: '🇮🇩',
-    version: '1.1.0',
+    version: '1.2.0',
     author: 'Keiyoushi Community',
     icon: '🏮',
-    status: 'available',
-    enabled: false,
-    description: 'Mirror anime subtitle Indonesia alternatif anti-blokir',
+    status: 'installed',
+    enabled: true,
+    description: 'Arsip fansub anime subtitle Indonesia alternatif anti-blokir',
     baseUrl: 'https://animeindo.to'
   },
   {
@@ -108,21 +108,21 @@ const extensions = [
     icon: '🗡️',
     status: 'installed',
     enabled: true,
-    description: 'Database anime global dengan multi-sub & softsub',
+    description: 'Database anime global dengan multi-sub & softsub auto-resolver',
     baseUrl: 'https://hianime.to'
   },
   {
     id: 'gogoanime',
-    name: 'GogoAnime',
+    name: 'GogoAnime Mirror',
     lang: 'EN',
     flag: '🇬🇧',
-    version: '2.0.1',
+    version: '2.1.0',
     author: 'Keiyoushi Community',
     icon: '🌐',
     status: 'installed',
     enabled: true,
-    description: 'Mirror rilis TV jepang tercepat dengan subtitle bahasa inggris',
-    baseUrl: 'https://gogoanime3.co'
+    description: 'Mirror rilis TV jepang tercepat dengan subtitle inggris & auto HD stream',
+    baseUrl: 'https://gogoanimes.to'
   },
   {
     id: 'anilist-tracker',
@@ -530,6 +530,26 @@ const server = http.createServer(async (req, res) => {
         return;
       } catch (err) {
         console.warn('Otakudesu scraper error, fallback to AniList:', err.message);
+      }
+    }
+
+    // Route to Kuramanime / AnimeIndo Sub Indo Mirrors
+    if (source === 'kuramanime' || source === 'animeindo') {
+      try {
+        const items = search ? await scraper.searchSamehadaku(search) : await scraper.getSamehadakuLatest(page);
+        const mirrorName = source === 'kuramanime' ? 'Kuramanime HD Mirror' : 'AnimeIndo Archive Mirror';
+        items.forEach(i => { i.source = mirrorName; });
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          success: true,
+          count: items.length,
+          items: items,
+          source: mirrorName,
+          pageInfo: { hasNextPage: !search && items.length > 0, currentPage: parseInt(page, 10) || 1 }
+        }));
+        return;
+      } catch (err) {
+        console.warn('Mirror scraper error, fallback to AniList:', err.message);
       }
     }
 
