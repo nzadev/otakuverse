@@ -32,7 +32,8 @@ const state = {
   settings: {
     skipIntroTime: parseInt(localStorage.getItem('otakuverse_skip_intro') || '85', 10),
     defaultQuality: localStorage.getItem('otakuverse_quality') || '720',
-    autoNext: localStorage.getItem('otakuverse_autonext') !== 'false'
+    autoNext: localStorage.getItem('otakuverse_autonext') !== 'false',
+    autoFallback: localStorage.getItem('otakuverse_autofallback') !== 'false'
   }
 };
 
@@ -91,6 +92,7 @@ const DOM = {
   settingSkipIntroTime: document.getElementById('settingSkipIntroTime'),
   settingDefaultQuality: document.getElementById('settingDefaultQuality'),
   settingAutoNext: document.getElementById('settingAutoNext'),
+  settingAutoFallback: document.getElementById('settingAutoFallback'),
   settingCacheSize: document.getElementById('settingCacheSize'),
   btnClearCache: document.getElementById('btnClearCache'),
   adminSettingsCard: document.getElementById('adminSettingsCard'),
@@ -1567,6 +1569,14 @@ function setupSettingsUI() {
     showToast(e.target.checked ? '▶️ Putar otomatis episode berikutnya aktif' : '⏹️ Putar otomatis dimatikan');
   });
 
+  // Auto Fallback Server
+  DOM.settingAutoFallback.checked = state.settings.autoFallback;
+  DOM.settingAutoFallback.addEventListener('change', (e) => {
+    state.settings.autoFallback = e.target.checked;
+    localStorage.setItem('otakuverse_autofallback', e.target.checked.toString());
+    showToast(e.target.checked ? '🔁 Auto Fallback Server aktif' : '⏹️ Auto Fallback dimatikan');
+  });
+
   // Clear Cache
   DOM.btnClearCache.addEventListener('click', () => {
     localStorage.removeItem('otakuverse_watchlist');
@@ -1851,15 +1861,47 @@ function setupEventListeners() {
   // Video Element Events
   DOM.mainVideoPlayer.addEventListener('play', () => updatePlayIcons(true));
   DOM.mainVideoPlayer.addEventListener('pause', () => updatePlayIcons(false));
+  
+  let bufferingTimeout = null;
+  const triggerAutoFallback = () => {
+    if (!state.settings.autoFallback) return;
+    const select = DOM.serverSelect;
+    const currentIdx = select.selectedIndex;
+    // Switch to next server if there is one (ignoring the last one if it's trailer, wait, we can just switch to the next valid option)
+    if (currentIdx >= 0 && currentIdx < select.options.length - 1) {
+      const nextOpt = select.options[currentIdx + 1];
+      if (nextOpt.value === 'trailer') return; // don't fallback to trailer
+      showToast(`⚠️ Server lemot/error. Ganti otomatis ke ${nextOpt.text}...`);
+      select.selectedIndex = currentIdx + 1;
+      select.dispatchEvent(new Event('change'));
+    }
+  };
+
+  DOM.mainVideoPlayer.addEventListener('error', (e) => {
+    if (DOM.mainVideoPlayer.error && state.settings.autoFallback) {
+      triggerAutoFallback();
+    }
+  });
+
   DOM.mainVideoPlayer.addEventListener('waiting', () => {
     DOM.videoContainer.classList.add('is-buffering');
+    if (state.settings.autoFallback) {
+      clearTimeout(bufferingTimeout);
+      bufferingTimeout = setTimeout(() => {
+        if (DOM.videoContainer.classList.contains('is-buffering')) {
+          triggerAutoFallback();
+        }
+      }, 10000); // 10 seconds threshold
+    }
   });
   DOM.mainVideoPlayer.addEventListener('playing', () => {
     DOM.videoContainer.classList.remove('is-buffering');
+    clearTimeout(bufferingTimeout);
     updatePlayIcons(true);
   });
   DOM.mainVideoPlayer.addEventListener('canplay', () => {
     DOM.videoContainer.classList.remove('is-buffering');
+    clearTimeout(bufferingTimeout);
   });
   DOM.mainVideoPlayer.addEventListener('ended', () => {
     updatePlayIcons(false);
