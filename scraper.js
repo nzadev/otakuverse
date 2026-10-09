@@ -95,7 +95,13 @@ function cleanTitleForPosterMatch(rawTitle) {
     }
   }
 
-  // 4. Normalized alphanumeric
+  // 4. Handle specific spelling variants in fansub releases
+  if (base.toLowerCase().includes('daiseijo') || base.toLowerCase().includes('dai seijo')) {
+    cands.push(base.replace(/daiseijo/gi, 'Dai Seijo').replace(/hitakakusu/gi, 'Hita Kakusu'));
+    cands.push('Tensei shita Dai Seijo wa, Seijo de Aru Koto wo Hita Kakusu');
+  }
+
+  // 5. Normalized alphanumeric
   const alphaOnly = base.replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
   if (alphaOnly && alphaOnly !== base) {
     cands.push(alphaOnly);
@@ -237,10 +243,12 @@ const SAMEHADAKU_BASE = 'https://v2.samehadaku.how';
 
 async function getSamehadakuLatest(page = 1) {
   const p = parseInt(page, 10) || 1;
-  const targetUrl = p === 1 ? `${SAMEHADAKU_BASE}/anime-terbaru/` : `${SAMEHADAKU_BASE}/anime-terbaru/page/${p}/`;
-  const html = await fetchCurl(targetUrl);
+  const startP = (p - 1) * 2 + 1;
+  const endP = startP + 1;
+
   const items = [];
   const seenSlugs = new Set();
+  const seenTitles = new Set();
 
   const parseFromHtml = (content) => {
     const matches = [...content.matchAll(/<div class="thumb">\s*<a href="([^"]+)"\s*title="([^"]+)"[^>]*>[\s\S]*?<img [^>]*src="([^"]+)"/g)];
@@ -253,9 +261,11 @@ async function getSamehadakuLatest(page = 1) {
       const epNum = numMatch ? parseInt(numMatch[1], 10) : 1;
       const cleanTitle = rawTitle.replace(/Episode\s*\d+/i, '').replace(/\[BATCH\]/i, '').trim();
       const slug = fullUrl.replace(SAMEHADAKU_BASE, '').replace(/^\/|\/$/g, '');
+      const tKey = (cleanTitle || rawTitle).toLowerCase().trim();
 
-      if (seenSlugs.has(slug)) continue;
+      if (seenSlugs.has(slug) || seenTitles.has(tKey)) continue;
       seenSlugs.add(slug);
+      seenTitles.add(tKey);
 
       items.push({
         id: `sh_${slug}`,
@@ -287,15 +297,20 @@ async function getSamehadakuLatest(page = 1) {
     }
   };
 
-  parseFromHtml(html);
+  // Fetch 2 pages in parallel for a rich 26-30 anime catalog per click
+  const targetUrls = [
+    startP === 1 ? `${SAMEHADAKU_BASE}/anime-terbaru/` : `${SAMEHADAKU_BASE}/anime-terbaru/page/${startP}/`,
+    `${SAMEHADAKU_BASE}/anime-terbaru/page/${endP}/`
+  ];
+
+  const htmls = await Promise.all(targetUrls.map(u => fetchCurl(u).catch(() => '')));
+  htmls.forEach(h => { if (h) parseFromHtml(h); });
 
   if (p === 1) {
     try {
       const homeHtml = await fetchCurl(SAMEHADAKU_BASE);
       parseFromHtml(homeHtml);
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
   }
 
   await enrichItemsWithAniListCovers(items);
