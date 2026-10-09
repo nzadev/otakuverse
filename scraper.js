@@ -24,8 +24,18 @@ function fetchCurl(url, extraArgs = []) {
       '-k',
       '-sL',
       '--max-time', '10',
-      '-A', USER_AGENT,
-      '-H', 'Accept-Language: id-ID,id;q=0.9,en-US;q=0.8',
+      '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+      '-H', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+      '-H', 'Accept-Language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+      '-H', 'Sec-Ch-Ua: "Chromium";v="128", "Not;A=Brand";v="24", "Google Chrome";v="128"',
+      '-H', 'Sec-Ch-Ua-Mobile: ?0',
+      '-H', 'Sec-Ch-Ua-Platform: "Windows"',
+      '-H', 'Sec-Fetch-Dest: document',
+      '-H', 'Sec-Fetch-Mode: navigate',
+      '-H', 'Sec-Fetch-Site: same-origin',
+      '-H', 'Sec-Fetch-User: ?1',
+      '-H', 'Upgrade-Insecure-Requests: 1',
+      '-H', 'Referer: https://v2.samehadaku.how/',
       ...extraArgs,
       url
     ], (err, stdout) => {
@@ -61,7 +71,7 @@ function cleanTitleForPosterMatch(rawTitle) {
   const decoded = decodeHtmlEntities(rawTitle);
 
   const noParen = decoded.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
-  const noEp = noParen.replace(/Episode\s*\d+/gi, '').replace(/\bEp\s*\d+/gi, '').trim();
+  const noEp = noParen.replace(/Episode\s*\d+/gi, '').replace(/\bEp\s*\d+/gi, '').replace(/\[END\]/gi, '').replace(/\[BATCH\]/gi, '').trim();
 
   // Base title without Season/S/Part suffixes
   const base = noEp
@@ -72,42 +82,51 @@ function cleanTitleForPosterMatch(rawTitle) {
 
   const cands = [];
 
-  // 1. Primary: Clean main title before colon / hyphen / dash
-  const colonPart = base.split(/[:\-–—]/)[0].trim();
-  if (colonPart && colonPart.length >= 3) {
-    cands.push(colonPart);
-    if (colonPart.toLowerCase().includes('oujisama')) {
-      cands.push(colonPart.replace(/oujisama/gi, 'ouji-sama'));
-    }
-  }
-
-  // 2. Full base
+  // 1. Full base title
   cands.push(base);
-  if (base.toLowerCase().includes('oujisama')) {
-    cands.push(base.replace(/oujisama/gi, 'ouji-sama'));
+
+  // 2. Tweaked spellings common in fansub releases
+  let tweaked = base
+    .replace(/dewa/gi, 'de wa')
+    .replace(/yarikomizuki/gi, 'Yarikomi-zuki')
+    .replace(/oujisama/gi, 'ouji-sama')
+    .replace(/daiseijo/gi, 'dai seijo')
+    .replace(/hitakakusu/gi, 'hita kakusu')
+    .replace(/itte\s+kara/gi, 'ittekara')
+    .replace(/\bEXGV\b/gi, '')
+    .trim();
+  if (tweaked && tweaked !== base) cands.push(tweaked);
+
+  // 3. Colon part (if title has colon subtitle, but do NOT split hyphens like '10-nen' or 'Yarikomi-zuki')
+  const colonPart = base.split(':')[0].trim();
+  if (colonPart && colonPart.length >= 3 && colonPart !== base) {
+    cands.push(colonPart);
   }
 
-  // 3. Handle Shin prefix
-  if (base.toLowerCase().startsWith('shin ')) {
-    cands.push(base.slice(5).trim());
-    if (colonPart && colonPart.toLowerCase().startsWith('shin ')) {
-      cands.push(colonPart.slice(5).trim());
-    }
+  // 4. Distinctive word prefixes for long light novel titles (first 4-5 words and first 3 words)
+  const words = base.split(/\s+/).filter(Boolean);
+  if (words.length >= 5) {
+    cands.push(words.slice(0, 5).join(' '));
+  }
+  if (words.length >= 3) {
+    cands.push(words.slice(0, 3).join(' '));
+  }
+  if (words.length >= 2 && (words[0].toLowerCase() === 'hell' || words[0].toLowerCase() === 'shin')) {
+    cands.push(words.slice(0, 2).join(' '));
   }
 
-  // 4. Handle specific spelling variants in fansub releases
+  // 5. Specific aliases
   if (base.toLowerCase().includes('daiseijo') || base.toLowerCase().includes('dai seijo')) {
-    cands.push(base.replace(/daiseijo/gi, 'Dai Seijo').replace(/hitakakusu/gi, 'Hita Kakusu'));
     cands.push('Tensei shita Dai Seijo wa, Seijo de Aru Koto wo Hita Kakusu');
   }
 
-  // 5. Normalized alphanumeric
+  // 6. Normalized alphanumeric
   const alphaOnly = base.replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
   if (alphaOnly && alphaOnly !== base) {
     cands.push(alphaOnly);
   }
 
-  return [...new Set(cands.filter(c => c && c.length >= 2))];
+  return [...new Set(cands.filter(c => c && c.length >= 3))];
 }
 
 async function warmupPosterCache() {
@@ -164,9 +183,18 @@ async function enrichItemsWithAniListCovers(items) {
     await warmupPosterCache();
   }
 
-  // 1. Check in-memory cache first
+  // 1. Direct AniList ID extraction from filename & Check in-memory cache
   const missing = [];
   for (const item of items) {
+    // If filename has embedded AniList ID (e.g. bx185875-XMvDVlIUZODx...)
+    const bxMatch = item.poster && item.poster.match(/\/bx(\d+)-/);
+    if (bxMatch) {
+      const anilistId = parseInt(bxMatch[1], 10);
+      item.poster = `https://s4.anilist.co/file/anilistcdn/media/anime/cover/large/bx${anilistId}.jpg`;
+      item.backdrop = `https://s4.anilist.co/file/anilistcdn/media/anime/banner/${anilistId}.jpg`;
+      continue;
+    }
+
     const candidates = cleanTitleForPosterMatch(item.title);
     let found = null;
     for (const cand of candidates) {
@@ -180,7 +208,7 @@ async function enrichItemsWithAniListCovers(items) {
       item.poster = found.poster || item.poster;
       item.backdrop = found.backdrop || item.backdrop;
     } else {
-      missing.push({ item, candidates: candidates.slice(0, 3) });
+      missing.push({ item, candidates: candidates.slice(0, 4) });
     }
   }
 
@@ -320,6 +348,7 @@ async function getSamehadakuLatest(page = 1) {
 async function searchSamehadaku(query) {
   const html = await fetchCurl(`${SAMEHADAKU_BASE}/?s=${encodeURIComponent(query)}`);
   const items = [];
+  const seenTitles = new Set();
 
   const matches = [...html.matchAll(/<div class="animposx">[\s\S]*?<a[^>]*href="([^"]+)"[^>]*title="([^"]+)"[\s\S]*?<img[^>]*src="([^"]+)"/g)];
 
@@ -329,10 +358,17 @@ async function searchSamehadaku(query) {
     const poster = match[3];
     const slug = url.replace(SAMEHADAKU_BASE, '').replace(/^\/|\/$/g, '');
 
+    const cleanTitle = rawTitle.replace(/Episode\s*\d+.*$/i, '').replace(/\[BATCH\]/i, '').replace(/\[END\]/i, '').trim();
+    const tKey = (cleanTitle || rawTitle).toLowerCase().trim();
+
+    // Prefer 1 clean entry per anime series
+    if (seenTitles.has(tKey)) continue;
+    seenTitles.add(tKey);
+
     items.push({
       id: `sh_${slug}`,
       slug: slug,
-      title: rawTitle,
+      title: cleanTitle || rawTitle,
       native_title: 'Samehadaku Sub Indo',
       episode_number: 1,
       episodes_count: 12,
@@ -344,7 +380,7 @@ async function searchSamehadaku(query) {
       status: url.includes('batch') ? 'Completed' : 'Ongoing',
       type: 'TV Series',
       genres: ['Action', 'Shounen', 'Sub Indo'],
-      synopsis: `Serial anime ${rawTitle} subtitle Indonesia di repositori Samehadaku.`,
+      synopsis: `Serial anime ${cleanTitle || rawTitle} subtitle Indonesia di repositori Samehadaku.`,
       episodes: [
         {
           number: 1,
