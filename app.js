@@ -1867,56 +1867,40 @@ function setupAdminMode() {
       return;
     }
 
-    const pin = prompt('🔐 Masukkan Kode PIN Akses Brankas:');
-    if (pin === null) return;
-    const cleanPin = pin.trim();
-    const currentStoredPin = getAdminPin();
-    if (cleanPin === currentStoredPin || cleanPin === '6969' || cleanPin === '1337' || cleanPin.toLowerCase() === 'admin') {
-      state.adminMode = true;
-      localStorage.setItem('otakuverse_admin', 'true');
-      updateAdminUI();
-      showToast('🔓 Akses Brankas Berhasil Dibuka');
-      const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
-      if (specialPill) specialPill.click();
-    } else {
-      showToast('❌ PIN salah! Akses ditolak.');
-    }
+    showToast('🔑 Membaca kunci dari Flashdisk/OTG...', 2000);
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.key,.txt';
+    fileInput.style.display = 'none';
+
+    fileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (ev) => {
+        const content = ev.target.result.trim();
+        // The secret key inside the file must match "OTAKU_ADMIN_1337"
+        if (content === 'OTAKU_ADMIN_1337') {
+          state.adminMode = true;
+          localStorage.setItem('otakuverse_admin', 'true');
+          updateAdminUI();
+          showToast('🔓 Akses Brankas Berhasil Dibuka lewat Flashdisk!');
+          const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
+          if (specialPill) specialPill.click();
+        } else {
+          showToast('❌ Kunci Flashdisk salah atau tidak valid!');
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    document.body.appendChild(fileInput);
+    fileInput.click();
+    document.body.removeChild(fileInput);
   };
 
-  const toggleBtn = DOM.btnToggleAdmin || document.getElementById('btnToggleAdmin');
-  if (toggleBtn) {
-    toggleBtn.onclick = promptAdminPIN;
-  }
-
-  const changePinBtn = DOM.btnChangeAdminPin || document.getElementById('btnChangeAdminPin');
-  if (changePinBtn) {
-    changePinBtn.onclick = (e) => {
-      if (e) e.preventDefault();
-      const currentStoredPin = getAdminPin();
-      const oldPin = prompt('Masukkan PIN saat ini (default: 6969):');
-      if (oldPin === null) return;
-      const cleanOld = oldPin.trim();
-      if (cleanOld !== currentStoredPin && cleanOld !== '6969' && cleanOld !== '1337' && cleanOld.toLowerCase() !== 'admin') {
-        showToast('❌ PIN lama yang Anda masukkan salah!');
-        return;
-      }
-      const newPin = prompt('Masukkan PIN baru Anda (minimal 4 karakter):');
-      if (!newPin || newPin.trim().length < 4) {
-        showToast('⚠️ PIN baru minimal harus 4 karakter!');
-        return;
-      }
-      localStorage.setItem('otakuverse_admin_pin', newPin.trim());
-      showToast('✅ PIN Brankas berhasil diubah!');
-      if (!state.adminMode) {
-        state.adminMode = true;
-        localStorage.setItem('otakuverse_admin', 'true');
-        updateAdminUI();
-        const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
-        if (specialPill) specialPill.click();
-      }
-    };
-  }
-
+  // No more manual toggle buttons in Settings
   // Secret 5-clicks trigger on Brand Title or Header
   let secretClicks = 0;
   let secretTimer = null;

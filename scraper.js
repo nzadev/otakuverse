@@ -994,32 +994,26 @@ module.exports = {
   getOtakudesuAnimeEpisodes,
   getOtakudesuStreams,
   resolveStreamByTitle,
-  getKucingPeduliStreams
+  getHanimeStreams
 };
 
-async function getKucingPeduliStreams(title, episode) {
-  // CATATAN: Nekopoi (Kucing Peduli) biasanya dilindungi oleh Cloudflare (Under Attack Mode).
-  // Request otomatis dari server NodeJS biasanya diblokir 403 Forbidden.
-  // Oleh karena itu, kita memberikan placeholder. Untuk implementasi real, 
-  // butuh bypasser seperti Puppeteer / FlareSolverr.
+async function getHanimeStreams(title, episode) {
+  // CATATAN: API Hanime bisa dilindungi Cloudflare, 
+  // Jika akses langsung dari Node backend gagal, 
+  // kita siapkan link external (direct search).
   
   const cleanTitle = title.replace(/[^a-zA-Z0-9 ]/g, ' ').trim().replace(/\s+/g, '+');
-  const searchUrl = `https://nekopoi.care/?s=${cleanTitle}`;
+  const searchUrl = `https://hanime.tv/search?q=${cleanTitle}`;
 
-  // Simulasi stream dari Kucing Peduli
+  // Coba fetch dari Hanime API (Dummy for now due to Cloudflare block on Node.js)
+  // Kalau ada Puppeteer, kita bisa hit htv-services API.
+  
   return [
     {
-      server: 'Kucing Peduli (Cari & Buka)',
+      server: 'Hanime (Direct Search)',
       url: searchUrl, 
       type: 'external', 
       quality: 'HD',
-      isBlogger: false
-    },
-    {
-      server: 'Bypass Info',
-      url: '/media/sample.mp4', 
-      type: 'video',
-      quality: '720p',
       isBlogger: false
     }
   ];

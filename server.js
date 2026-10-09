@@ -450,7 +450,7 @@ const server = http.createServer(async (req, res) => {
 
     try {
       if (isAdult) {
-        streams = await scraper.getKucingPeduliStreams(title || romaji, episode);
+        streams = await scraper.getHanimeStreams(title || romaji, episode);
       } else if (targetUrl && source.includes('samehadaku')) {
         streams = await scraper.getSamehadakuStreams(targetUrl);
       } else if (targetUrl && source.includes('otakudesu')) {
