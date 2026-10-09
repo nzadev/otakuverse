@@ -462,8 +462,21 @@ async function fetchAnime(isAppend = false) {
 
       if (!isAppend) {
         state.allAnime = normalizedItems;
+        state.newlyAppendedItems = normalizedItems;
       } else {
-        state.allAnime = [...state.allAnime, ...normalizedItems];
+        const existingIds = new Set(state.allAnime.map(a => String(a.id)));
+        const existingTitles = new Set(state.allAnime.map(a => (a.title || '').toLowerCase().trim()));
+        const uniqueNewItems = [];
+        for (const item of normalizedItems) {
+          const tKey = (item.title || '').toLowerCase().trim();
+          if (!existingIds.has(String(item.id)) && (!tKey || !existingTitles.has(tKey))) {
+            existingIds.add(String(item.id));
+            if (tKey) existingTitles.add(tKey);
+            uniqueNewItems.push(item);
+          }
+        }
+        state.newlyAppendedItems = uniqueNewItems;
+        state.allAnime = [...state.allAnime, ...uniqueNewItems];
       }
 
       state.filteredAnime = state.allAnime;
@@ -492,7 +505,7 @@ async function fetchAnime(isAppend = false) {
   } finally {
     state.isLoading = false;
     if (DOM.loadMoreSpinner) DOM.loadMoreSpinner.classList.add('hidden');
-    if (DOM.loadMoreText) DOM.loadMoreText.textContent = 'Muat 30 Anime Lainnya ⬇';
+    if (DOM.loadMoreText) DOM.loadMoreText.textContent = 'Muat Anime Lainnya ⬇';
   }
 }
 
@@ -518,12 +531,17 @@ function renderAnimeGrid(isAppend = false) {
 
   const fragment = document.createDocumentFragment();
 
-  // If appending, only render new slice
+  // If appending, strictly render ONLY the newly appended unique items (ZERO duplicates)
   const itemsToRender = isAppend
-    ? state.filteredAnime.slice(state.filteredAnime.length - 30)
+    ? (state.newlyAppendedItems || [])
     : state.filteredAnime;
 
   itemsToRender.forEach(anime => {
+    // Extra safety guard against duplicate DOM cards
+    if (isAppend && DOM.animeGrid.querySelector(`.anime-card[data-id="${anime.id}"]`)) {
+      return;
+    }
+
     const card = document.createElement('article');
     card.className = 'anime-card';
     card.dataset.id = anime.id;
@@ -843,11 +861,33 @@ async function openPlayer(anime, epIndex = 0) {
     const res = await fetch(`/api/scrapers/streams?${queryParams.toString()}`);
     const data = await res.json();
     if (data.success && Array.isArray(data.streams) && data.streams.length > 0) {
+      // Smart Hardware-Accelerated Stream Scoring:
+      // Direct MP4 (native <video> GPU decode) >>> Heavy/Ad Iframe Embeds
+      const scoreStream = (s) => {
+        let score = 0;
+        // Direct MP4 plays with native hardware acceleration, HTTP 206 range chunking, zero frame drop
+        if (s.type === 'video') score += 1000;
+        
+        // Quality rank bonus
+        if (s.quality === '1080p') score += 400;
+        else if (s.quality === '720p') score += 300;
+        else if (s.quality === '480p') score += 200;
+        else if (s.quality === '360p') score += 100;
+
+        // Heavy decryption / ad penalties
+        if (s.url && s.url.includes('mega.nz')) score -= 200; // Mega JS AES chunk decryption causes CPU spikes/frame drops
+        if (s.isBlogger || (s.url && s.url.includes('blogger.com'))) score -= 300; // Blogger 360p low bitrate
+        return score;
+      };
+
+      const sortedStreams = [...data.streams].sort((a, b) => scoreStream(b) - scoreStream(a));
+
       DOM.serverSelect.innerHTML = '';
-      data.streams.forEach((stream, idx) => {
+      sortedStreams.forEach((stream, idx) => {
         const opt = document.createElement('option');
         opt.value = `stream_${idx}`;
-        opt.textContent = `${stream.server} [${stream.quality || 'HD'}]`;
+        const tag = stream.type === 'video' ? '⚡ [Direct MP4]' : '🌐 [Embed]';
+        opt.textContent = `${stream.server} ${tag}`;
         opt.dataset.url = stream.url;
         opt.dataset.type = stream.type || 'video';
         DOM.serverSelect.appendChild(opt);
@@ -862,12 +902,7 @@ async function openPlayer(anime, epIndex = 0) {
         DOM.serverSelect.appendChild(trailerOpt);
       }
 
-      // STRICT QUALITY SELECTION: 1080p FHD first, then 720p HD. NEVER 360p Blogger if better stream exists!
-      const bestStream = data.streams.find(s => s.quality === '1080p') ||
-                         data.streams.find(s => s.quality === '720p' && !s.isBlogger) ||
-                         data.streams.find(s => s.type === 'video') ||
-                         data.streams.find(s => !s.isBlogger) ||
-                         data.streams[0];
+      const bestStream = sortedStreams[0];
 
       if (bestStream) {
         const matchedOpt = Array.from(DOM.serverSelect.options).find(o => o.dataset.url === bestStream.url);
@@ -902,6 +937,7 @@ function loadNativeVideo(srcUrl) {
   DOM.mainVideoPlayer.classList.remove('hidden');
 
   DOM.mainVideoPlayer.src = srcUrl;
+  DOM.mainVideoPlayer.preload = 'auto';
   DOM.mainVideoPlayer.playbackRate = state.playbackSpeed;
   DOM.mainVideoPlayer.load();
 
@@ -1481,6 +1517,16 @@ function setupEventListeners() {
   // Video Element Events
   DOM.mainVideoPlayer.addEventListener('play', () => updatePlayIcons(true));
   DOM.mainVideoPlayer.addEventListener('pause', () => updatePlayIcons(false));
+  DOM.mainVideoPlayer.addEventListener('waiting', () => {
+    DOM.videoContainer.classList.add('is-buffering');
+  });
+  DOM.mainVideoPlayer.addEventListener('playing', () => {
+    DOM.videoContainer.classList.remove('is-buffering');
+    updatePlayIcons(true);
+  });
+  DOM.mainVideoPlayer.addEventListener('canplay', () => {
+    DOM.videoContainer.classList.remove('is-buffering');
+  });
   DOM.mainVideoPlayer.addEventListener('ended', () => {
     updatePlayIcons(false);
     if (state.settings.autoNext) {

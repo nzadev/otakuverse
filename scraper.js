@@ -413,11 +413,20 @@ async function getSamehadakuStreams(episodeUrl) {
     }
   }
 
-  // STRICT QUALITY SORTING: 1080p (FHD) first, then 720p (HD), 480p, and 360p last
-  uniqueStreams.sort((a, b) => {
-    const qRank = { '1080p': 4, '720p': 3, '480p': 2, '360p': 1 };
-    return (qRank[b.quality] || 0) - (qRank[a.quality] || 0);
-  });
+  // STRICT HARDWARE-ACCELERATED STREAM SORTING: Direct MP4 (GPU decode) > Clean iframe > Mega/Blogger
+  const scoreStream = (s) => {
+    let score = 0;
+    if (s.type === 'video') score += 1000;
+    if (s.quality === '1080p') score += 400;
+    else if (s.quality === '720p') score += 300;
+    else if (s.quality === '480p') score += 200;
+    else if (s.quality === '360p') score += 100;
+    if (s.url && s.url.includes('mega.nz')) score -= 200;
+    if (s.isBlogger || (s.url && s.url.includes('blogger.com'))) score -= 300;
+    return score;
+  };
+
+  uniqueStreams.sort((a, b) => scoreStream(b) - scoreStream(a));
 
   return uniqueStreams;
 }
@@ -688,20 +697,20 @@ async function getOtakudesuStreams(episodeUrl) {
     }
   }
 
-  // Deduplicate and rank: 1080p > 720p > 480p > 360p
-  const uniqueStreams = [];
-  const seenUrls = new Set();
-  for (const s of streams) {
-    if (!seenUrls.has(s.url)) {
-      seenUrls.add(s.url);
-      uniqueStreams.push(s);
-    }
-  }
+  // STRICT HARDWARE-ACCELERATED STREAM SORTING: Direct MP4 (GPU decode) > Clean iframe > Mega/Blogger
+  const scoreStream = (s) => {
+    let score = 0;
+    if (s.type === 'video') score += 1000;
+    if (s.quality === '1080p') score += 400;
+    else if (s.quality === '720p') score += 300;
+    else if (s.quality === '480p') score += 200;
+    else if (s.quality === '360p') score += 100;
+    if (s.url && s.url.includes('mega.nz')) score -= 200;
+    if (s.isBlogger || (s.url && s.url.includes('blogger.com'))) score -= 300;
+    return score;
+  };
 
-  uniqueStreams.sort((a, b) => {
-    const qRank = { '1080p': 4, '720p': 3, '480p': 2, '360p': 1 };
-    return (qRank[b.quality] || 0) - (qRank[a.quality] || 0);
-  });
+  uniqueStreams.sort((a, b) => scoreStream(b) - scoreStream(a));
 
   return uniqueStreams;
 }
