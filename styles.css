@@ -1190,15 +1190,16 @@ input:checked + .slider:before {
   position: absolute;
   inset: 0;
   background-size: cover;
-  background-position: center;
-  filter: blur(16px) brightness(0.45);
-  transform: scale(1.08);
+  background-position: center 25%;
+  filter: brightness(0.7);
+  transform: scale(1.02);
+  transition: background-image 0.4s ease;
 }
 
 .detail-backdrop-scrim {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(9, 10, 15, 0.3) 0%, var(--bg-oled) 100%);
+  background: linear-gradient(180deg, rgba(9, 10, 15, 0.2) 0%, rgba(9, 10, 15, 0.7) 60%, var(--bg-oled) 100%);
 }
 
 .btn-detail-back {

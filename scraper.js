@@ -63,31 +63,42 @@ function cleanTitleForPosterMatch(rawTitle) {
   const noParen = decoded.replace(/\(.*?\)/g, '').replace(/\[.*?\]/g, '').trim();
   const noEp = noParen.replace(/Episode\s*\d+/gi, '').replace(/\bEp\s*\d+/gi, '').trim();
 
-  const cands = [];
-  
   // Base title without Season/S/Part suffixes
   const base = noEp
     .replace(/\s+(?:Season|S)\s*\d+/gi, '')
     .replace(/\s+Part\s*\d+/gi, '')
     .replace(/\s+(?:II|III|IV|V)\b/g, '')
     .trim();
-  if (base) cands.push(base);
-  if (noEp && noEp !== base) cands.push(noEp);
 
-  // If title has a subtitle after colon or hyphen, try main title
+  const cands = [];
+
+  // 1. Primary: Clean main title before colon / hyphen / dash
   const colonPart = base.split(/[:\-–—]/)[0].trim();
-  if (colonPart && colonPart.length >= 3 && colonPart !== base) {
+  if (colonPart && colonPart.length >= 3) {
     cands.push(colonPart);
+    if (colonPart.toLowerCase().includes('oujisama')) {
+      cands.push(colonPart.replace(/oujisama/gi, 'ouji-sama'));
+    }
   }
 
-  // Handle "Shin " prefix (e.g. "Shin Tennis no Oujisama" -> "Tennis no Ouji-sama")
+  // 2. Full base
+  cands.push(base);
+  if (base.toLowerCase().includes('oujisama')) {
+    cands.push(base.replace(/oujisama/gi, 'ouji-sama'));
+  }
+
+  // 3. Handle Shin prefix
   if (base.toLowerCase().startsWith('shin ')) {
     cands.push(base.slice(5).trim());
+    if (colonPart && colonPart.toLowerCase().startsWith('shin ')) {
+      cands.push(colonPart.slice(5).trim());
+    }
   }
 
-  if (base.includes('Oujisama')) {
-    cands.push(base.replace(/Oujisama/g, 'Ouji-sama').split(/[:\-–—]/)[0].trim());
-    cands.push('Shin Tennis no Ouji-sama');
+  // 4. Normalized alphanumeric
+  const alphaOnly = base.replace(/[^a-zA-Z0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  if (alphaOnly && alphaOnly !== base) {
+    cands.push(alphaOnly);
   }
 
   return [...new Set(cands.filter(c => c && c.length >= 2))];
@@ -163,18 +174,20 @@ async function enrichItemsWithAniListCovers(items) {
       item.poster = found.poster || item.poster;
       item.backdrop = found.backdrop || item.backdrop;
     } else {
-      missing.push({ item, candidate: candidates[0] || item.title });
+      missing.push({ item, candidates: candidates.slice(0, 3) });
     }
   }
 
   // 2. If all matched from cache, return immediately (0ms)
   if (missing.length === 0) return items;
 
-  // 3. Batched single-request query for all missing items (prevents 429 rate limit and 404 aborts!)
+  // 3. Batched single-request query for all missing items with multi-candidate search
   const batchQueries = [];
   missing.forEach((m, idx) => {
-    const safeSearch = JSON.stringify(m.candidate);
-    batchQueries.push(`a${idx}: Page(page: 1, perPage: 1) { media(search: ${safeSearch}, type: ANIME) { title { romaji english } coverImage { extraLarge large } bannerImage } }`);
+    m.candidates.forEach((c, cIdx) => {
+      const safeSearch = JSON.stringify(c);
+      batchQueries.push(`q_${idx}_${cIdx}: Page(page: 1, perPage: 1) { media(search: ${safeSearch}, type: ANIME) { title { romaji english } coverImage { extraLarge large } bannerImage } }`);
+    });
   });
 
   try {
@@ -188,7 +201,15 @@ async function enrichItemsWithAniListCovers(items) {
       const payload = await res.json();
       const data = payload.data || {};
       missing.forEach((m, idx) => {
-        const media = data[`a${idx}`]?.media?.[0];
+        let media = null;
+        for (let cIdx = 0; cIdx < m.candidates.length; cIdx++) {
+          const found = data[`q_${idx}_${cIdx}`]?.media?.[0];
+          if (found && found.coverImage) {
+            media = found;
+            break;
+          }
+        }
+
         if (media && media.coverImage) {
           const hdCover = media.coverImage.extraLarge || media.coverImage.large;
           const banner = media.bannerImage || hdCover;

@@ -604,11 +604,17 @@ function renderAnimeGrid(isAppend = false) {
 function updateHeroSpotlight() {
   if (!state.filteredAnime.length) return;
   
-  // Pick featured anime (prefer Solo Leveling, Bleach, One Piece, or first item)
-  const featured = state.filteredAnime.find(a => a.id === 151807 || a.id === 21 || a.id === 269) || state.filteredAnime[0];
+  // Pick featured anime (prefer anime with true AniList widescreen banner)
+  const featured = state.filteredAnime.find(a => a.backdrop && a.backdrop.includes('/banner/')) ||
+                   state.filteredAnime.find(a => a.id === 151807 || a.id === 21 || a.id === 269) ||
+                   state.filteredAnime[0];
   if (!featured) return;
 
-  DOM.heroBackdrop.style.backgroundImage = `url('${featured.backdrop || featured.poster}')`;
+  const heroBg = (featured.backdrop && featured.backdrop.includes('/banner/'))
+    ? featured.backdrop
+    : (featured.backdrop || featured.poster);
+
+  DOM.heroBackdrop.style.backgroundImage = `url('${heroBg}')`;
   DOM.heroTitle.textContent = featured.title;
   const featGenres = Array.isArray(featured.genres) && featured.genres.length ? featured.genres.slice(0, 2).join(', ') : 'Action, Fantasy';
   const featStudio = (featured.studio && !featured.studio.toLowerCase().includes('unknown') && !featured.studio.toLowerCase().includes('studio animation')) ? featured.studio : 'Animation Studio';
@@ -632,8 +638,12 @@ function updateHeroSpotlight() {
 function openAnimeDetails(anime) {
   state.currentAnime = anime;
 
-  // Set Backdrops & Posters
-  DOM.detailBackdrop.style.backgroundImage = `url('${anime.backdrop || anime.poster}')`;
+  // Set Backdrops & Posters (prefer crisp widescreen banner art)
+  const detailBg = (anime.backdrop && anime.backdrop.includes('/banner/'))
+    ? anime.backdrop
+    : (anime.backdrop || anime.poster);
+
+  DOM.detailBackdrop.style.backgroundImage = `url('${detailBg}')`;
   DOM.detailPoster.src = anime.poster || '';
   DOM.detailPoster.alt = anime.title;
   DOM.detailScore.textContent = `★ ${anime.score || '8.8'}`;
