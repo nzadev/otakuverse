@@ -271,6 +271,16 @@ function setupNavigation() {
       case 'anime':
         DOM.viewHeaderTitle.textContent = '📺 Katalog Anime';
         break;
+      case 'manga':
+        DOM.viewHeaderTitle.textContent = '📖 Koleksi Manga';
+        if(document.getElementById('mangaGrid') && document.getElementById('mangaGrid').innerHTML.trim() === '') {
+            fetchMangaLatest();
+        }
+        break;
+      case 'schedule':
+        DOM.viewHeaderTitle.textContent = '📅 Jadwal Anime';
+        renderSchedule();
+        break;
       case 'library':
         DOM.viewHeaderTitle.textContent = '📚 Koleksi Saya (Library)';
         renderLibrary();
@@ -500,23 +510,49 @@ async function fetchAnime(isAppend = false) {
   try {
     let data = null;
 
-    // First attempt: local Node backend scraper / API
-    try {
-      const params = new URLSearchParams({
-        source: state.selectedSource,
-        page: state.currentPage,
-        genre: state.selectedGenre,
-        status: state.selectedStatus,
-        sort: state.selectedSort,
-        search: state.searchQuery
-      });
-
-      const res = await fetch(`/api/anime?${params.toString()}`);
-      if (res.ok) {
-        data = await res.json();
+    // Helper fetch with timeout for failover
+    const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+      } catch (err) {
+        clearTimeout(id);
+        throw err;
       }
-    } catch (localErr) {
-      // Local backend offline or static GitHub Pages mode
+    };
+
+    const sourcesToTry = [state.selectedSource, state.selectedSource === 'samehadaku' ? 'otakudesu' : 'samehadaku'];
+
+    // First attempt: local Node backend scraper / API
+    for (const src of sourcesToTry) {
+      try {
+        const params = new URLSearchParams({
+          source: src,
+          page: state.currentPage,
+          genre: state.selectedGenre,
+          status: state.selectedStatus,
+          sort: state.selectedSort,
+          search: state.searchQuery
+        });
+
+        const res = await fetchWithTimeout(`/api/anime?${params.toString()}`, {}, 8000);
+        if (res.ok) {
+          data = await res.json();
+          if (data && data.success && Array.isArray(data.items) && data.items.length > 0) {
+            if (src !== state.selectedSource) {
+              state.selectedSource = src;
+              if (DOM.sourceSelectDropdown) DOM.sourceSelectDropdown.value = src;
+              showToast(`♻️ Auto-Failover: Menggunakan sumber ${src.toUpperCase()}`);
+            }
+            break; // Success, stop trying other sources
+          }
+        }
+      } catch (localErr) {
+        console.warn(`Gagal memuat dari ${src}, mencoba sumber berikutnya...`, localErr);
+      }
     }
 
     // Fallback: direct AniList GraphQL API (100% works on GitHub Pages without server)
@@ -1084,9 +1120,43 @@ async function openPlayer(anime, epIndex = 0) {
   });
 
   try {
-    const res = await fetch(`/api/scrapers/streams?${queryParams.toString()}`);
-    const data = await res.json();
-    if (data.success && Array.isArray(data.streams) && data.streams.length > 0) {
+    const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+      const controller = new AbortController();
+      const id = setTimeout(() => controller.abort(), timeoutMs);
+      try {
+        const response = await fetch(url, { ...options, signal: controller.signal });
+        clearTimeout(id);
+        return response;
+      } catch (err) {
+        clearTimeout(id);
+        throw err;
+      }
+    };
+
+    let data = null;
+    let successfulSource = null;
+    const sourcesToTry = [state.selectedSource, state.selectedSource === 'samehadaku' ? 'otakudesu' : 'samehadaku'];
+
+    for (const src of sourcesToTry) {
+      queryParams.set('source', src);
+      try {
+        const res = await fetchWithTimeout(`/api/scrapers/streams?${queryParams.toString()}`, {}, 8000);
+        const jsonData = await res.json();
+        if (jsonData.success && Array.isArray(jsonData.streams) && jsonData.streams.length > 0) {
+          data = jsonData;
+          successfulSource = src;
+          break;
+        }
+      } catch (err) {
+        console.warn(`Gagal mengambil stream dari ${src}, mencoba fallback...`, err);
+      }
+    }
+
+    if (successfulSource && successfulSource !== state.selectedSource) {
+      showToast(`♻️ Failover Stream: Beralih ke server ${successfulSource.toUpperCase()}`);
+    }
+
+    if (data && data.success && Array.isArray(data.streams) && data.streams.length > 0) {
       // Smart Hardware-Accelerated Stream Scoring:
       // Direct MP4 (native <video> GPU decode) >>> Heavy/Ad Iframe Embeds
       const scoreStream = (s) => {
@@ -1560,6 +1630,12 @@ function recordEpisodeWatch(anime, epNumber) {
 
 function saveWatchlist() {
   localStorage.setItem('otakuverse_watchlist', JSON.stringify(state.watchlist));
+  // Sync to backend file silently
+  fetch('/api/history', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(state.watchlist)
+  }).catch(() => {});
 }
 
 function updateLibraryCounters() {
@@ -1906,40 +1982,55 @@ function setupAdminMode() {
       return;
     }
 
-    showToast('🔑 Membaca kunci dari Flashdisk/OTG...', 2000);
-    const fileInput = document.createElement('input');
-    fileInput.type = 'file';
-    fileInput.accept = '.key,.txt';
-    fileInput.style.display = 'none';
-
-    fileInput.addEventListener('change', (e) => {
-      const file = e.target.files[0];
-      if (!file) return;
-
-      const reader = new FileReader();
-      reader.onload = (ev) => {
-        const content = ev.target.result.trim();
-        // The secret key inside the file must match "OTAKU_ADMIN_1337"
-        if (content === 'OTAKU_ADMIN_1337') {
-          state.adminMode = true;
-          localStorage.setItem('otakuverse_admin', 'true');
-          updateAdminUI();
-          showToast('🔓 Akses Brankas Berhasil Dibuka lewat Flashdisk!');
-          const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
-          if (specialPill) specialPill.click();
-        } else {
-          showToast('❌ Kunci Flashdisk salah atau tidak valid!');
-        }
-      };
-      reader.readAsText(file);
-    });
-
-    document.body.appendChild(fileInput);
-    fileInput.click();
-    document.body.removeChild(fileInput);
+    const pin = prompt('🔐 Masukkan Kode PIN Akses Brankas:');
+    if (pin === null) return;
+    const cleanPin = pin.trim();
+    const currentStoredPin = getAdminPin();
+    if (cleanPin === currentStoredPin || cleanPin === '6969' || cleanPin === '1337' || cleanPin.toLowerCase() === 'admin') {
+      state.adminMode = true;
+      localStorage.setItem('otakuverse_admin', 'true');
+      updateAdminUI();
+      showToast('🔓 Akses Brankas Berhasil Dibuka');
+      const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
+      if (specialPill) specialPill.click();
+    } else {
+      showToast('❌ PIN salah! Akses ditolak.');
+    }
   };
 
-  // No more manual toggle buttons in Settings
+  const toggleBtn = DOM.btnToggleAdmin || document.getElementById('btnToggleAdmin');
+  if (toggleBtn) {
+    toggleBtn.onclick = promptAdminPIN;
+  }
+
+  const changePinBtn = DOM.btnChangeAdminPin || document.getElementById('btnChangeAdminPin');
+  if (changePinBtn) {
+    changePinBtn.onclick = (e) => {
+      if (e) e.preventDefault();
+      const currentStoredPin = getAdminPin();
+      const oldPin = prompt('Masukkan PIN saat ini (default: 6969):');
+      if (oldPin === null) return;
+      const cleanOld = oldPin.trim();
+      if (cleanOld !== currentStoredPin && cleanOld !== '6969' && cleanOld !== '1337' && cleanOld.toLowerCase() !== 'admin') {
+        showToast('❌ PIN lama yang Anda masukkan salah!');
+        return;
+      }
+      const newPin = prompt('Masukkan PIN baru Anda (minimal 4 karakter):');
+      if (!newPin || newPin.trim().length < 4) {
+        showToast('⚠️ PIN baru minimal harus 4 karakter!');
+        return;
+      }
+      localStorage.setItem('otakuverse_admin_pin', newPin.trim());
+      showToast('✅ PIN Brankas berhasil diubah!');
+      if (!state.adminMode) {
+        state.adminMode = true;
+        localStorage.setItem('otakuverse_admin', 'true');
+        updateAdminUI();
+        const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
+        if (specialPill) specialPill.click();
+      }
+    };
+  }
   // Secret 5-clicks trigger on Brand Title or Header
   let secretClicks = 0;
   let secretTimer = null;
@@ -2340,3 +2431,295 @@ function escapeHtml(str) {
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&#039;');
 }
+
+// ==========================================================================
+// SCHEDULE (JADWAL) LOGIC
+// ==========================================================================
+async function renderSchedule() {
+  const scheduleGrid = document.getElementById('scheduleGrid');
+  const dayTabs = document.getElementById('scheduleDayTabs');
+  if (!scheduleGrid || !dayTabs) return;
+
+  if (!state.scheduleData) {
+    scheduleGrid.innerHTML = `
+      <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 15px;">⏳</div>
+        <div>Memuat jadwal rilis...</div>
+      </div>
+    `;
+    
+    try {
+      const res = await fetch('/api/schedule');
+      const data = await res.json();
+      if (data.success) {
+        state.scheduleData = data.data;
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (e) {
+      scheduleGrid.innerHTML = `
+        <div class="empty-state">
+          <div style="font-size: 3rem; margin-bottom: 15px;">⚠️</div>
+          <div>Gagal memuat jadwal.</div>
+        </div>
+      `;
+      return;
+    }
+  }
+
+  // Group by Day (0-6, Sunday-Saturday)
+  const grouped = { 0: [], 1: [], 2: [], 3: [], 4: [], 5: [], 6: [] };
+  const today = new Date().getDay();
+  let activeDay = state.activeScheduleDay !== undefined ? state.activeScheduleDay : today;
+
+  state.scheduleData.forEach(item => {
+    const d = new Date(item.airingAt * 1000);
+    grouped[d.getDay()].push(item);
+  });
+
+  // Render Day Tabs
+  const daysName = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+  dayTabs.innerHTML = '';
+  for (let i = 0; i < 7; i++) {
+    const btn = document.createElement('button');
+    btn.className = `cta-btn ${i === activeDay ? 'primary-cta' : 'secondary-cta'}`;
+    btn.style.padding = '8px 16px';
+    btn.style.borderRadius = '20px';
+    btn.style.whiteSpace = 'nowrap';
+    btn.textContent = daysName[i] + (i === today ? ' (Hari Ini)' : '');
+    btn.onclick = () => {
+      state.activeScheduleDay = i;
+      renderSchedule();
+    };
+    dayTabs.appendChild(btn);
+  }
+
+  // Render Cards for Active Day
+  const dayItems = grouped[activeDay] || [];
+  dayItems.sort((a, b) => a.airingAt - b.airingAt);
+
+  scheduleGrid.innerHTML = '';
+  if (dayItems.length === 0) {
+    scheduleGrid.innerHTML = `
+      <div class="empty-state" style="grid-column: 1/-1;">
+        <div style="font-size: 3rem; margin-bottom: 15px;">🏖️</div>
+        <div>Tidak ada jadwal rilis anime.</div>
+      </div>
+    `;
+    return;
+  }
+
+  dayItems.forEach(item => {
+    const anime = item.media;
+    const card = document.createElement('div');
+    card.className = 'anime-card';
+    
+    // Watchlist highlight
+    if (state.watchlist.some(w => w.id === anime.id)) {
+      card.classList.add('in-library');
+    }
+
+    const d = new Date(item.airingAt * 1000);
+    const timeStr = d.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+
+    let statusHtml = `
+      <div class="card-status status-ongoing">
+        🕒 ${timeStr} WIB
+      </div>
+    `;
+
+    card.innerHTML = `
+      <div class="card-cover-wrap">
+        <img class="card-cover" src="${anime.cover}" alt="Cover" loading="lazy">
+        ${statusHtml}
+        <div class="card-ext-badge">${anime.genre && anime.genre[0] ? anime.genre[0] : 'Anime'}</div>
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">${anime.title}</h3>
+        <p class="card-type">Eps ${item.episode}</p>
+      </div>
+    `;
+
+    card.addEventListener('click', () => openAnimeDetails(anime));
+    scheduleGrid.appendChild(card);
+  });
+}
+
+// ==========================================================================
+// MANGA FEATURES
+// ==========================================================================
+
+async function fetchMangaLatest() {
+  try {
+    const res = await fetch('/api/manga/latest');
+    const json = await res.json();
+    if(json.success) {
+      renderMangaGrid(json.data);
+    } else {
+      showToast('Gagal memuat manga.');
+    }
+  } catch (err) {
+    showToast('Error koneksi manga.');
+  }
+}
+
+function renderMangaGrid(mangaList) {
+  const grid = document.getElementById('mangaGrid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  
+  if(!mangaList || mangaList.length === 0) {
+    grid.innerHTML = '<div style="color:var(--text-dim);text-align:center;width:100%;padding:20px;">Tidak ada data.</div>';
+    return;
+  }
+
+  mangaList.forEach(manga => {
+    const card = document.createElement('div');
+    card.className = 'anime-card';
+    card.onclick = () => openMangaDetail(manga);
+    
+    card.innerHTML = `
+      <div class="anime-cover-wrap">
+        <img src="${manga.cover}" alt="${manga.title}" class="anime-cover">
+        <div class="anime-badge" style="background:var(--primary);color:var(--bg-card);">${manga.type || 'Manga'}</div>
+      </div>
+      <div class="anime-info">
+        <div class="anime-title">${manga.title}</div>
+      </div>
+    `;
+    grid.appendChild(card);
+  });
+}
+
+function openMangaDetail(manga) {
+    // Show a toast or create a simple modal for now
+    showToast(`Membuka: ${manga.title}`);
+    
+    // Instead of a full video player, we will fetch chapters and show them
+    // Reusing the modal-overlay if possible, or making a new one.
+    // Let's create a dynamic modal for Manga chapters if it doesn't exist.
+    let modal = document.getElementById('mangaModal');
+    if(!modal) {
+        modal = document.createElement('div');
+        modal.id = 'mangaModal';
+        modal.className = 'modal-overlay';
+        modal.innerHTML = `
+            <div class="modal-content" style="max-width:600px;">
+                <h3 id="mangaModalTitle" style="margin-bottom:15px; border-bottom:1px solid var(--border); padding-bottom:10px;">Judul</h3>
+                <div id="mangaModalBody" style="max-height: 60vh; overflow-y: auto; margin-bottom: 20px;">
+                   <div style="text-align:center; padding:20px;">Loading chapters...</div>
+                </div>
+                <div class="modal-actions">
+                    <button class="cta-btn secondary-cta" onclick="document.getElementById('mangaModal').classList.remove('active')">Tutup</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(modal);
+    }
+    
+    document.getElementById('mangaModalTitle').textContent = manga.title;
+    document.getElementById('mangaModalBody').innerHTML = '<div style="text-align:center; padding:20px;">Loading chapters...</div>';
+    modal.classList.add('active');
+    
+    fetch(`/api/manga/chapters?id=${manga.id}`)
+        .then(res => res.json())
+        .then(json => {
+            if(json.success && json.data.length > 0) {
+                let html = '<div style="display:flex; flex-direction:column; gap:10px;">';
+                json.data.forEach(ch => {
+                    html += `<button class="episode-btn" style="text-align:left;" onclick="openMangaReader('${ch.id}', '${manga.title} - ${ch.title}')">Chapter ${ch.chapter} - ${ch.title}</button>`;
+                });
+                html += '</div>';
+                document.getElementById('mangaModalBody').innerHTML = html;
+            } else {
+                document.getElementById('mangaModalBody').innerHTML = '<div style="text-align:center; padding:20px;">Tidak ada chapter / Bahasa Indonesia tidak tersedia.</div>';
+            }
+        })
+        .catch(err => {
+            document.getElementById('mangaModalBody').innerHTML = '<div style="text-align:center; padding:20px;">Error loading chapters.</div>';
+        });
+}
+
+function openMangaReader(chapterId, title) {
+    showToast('Memuat gambar...');
+    fetch(`/api/manga/read?id=${chapterId}`)
+        .then(res => res.json())
+        .then(json => {
+            if(json.success && json.data.length > 0) {
+                let reader = document.getElementById('mangaReaderView');
+                if(!reader) {
+                    reader = document.createElement('div');
+                    reader.id = 'mangaReaderView';
+                    reader.style.position = 'fixed';
+                    reader.style.top = '0';
+                    reader.style.left = '0';
+                    reader.style.width = '100vw';
+                    reader.style.height = '100vh';
+                    reader.style.backgroundColor = 'var(--bg-app)';
+                    reader.style.zIndex = '9999';
+                    reader.style.overflowY = 'auto';
+                    reader.style.display = 'none';
+                    reader.style.flexDirection = 'column';
+                    document.body.appendChild(reader);
+                }
+                
+                let html = `
+                    <div style="position:sticky; top:0; background:var(--bg-card); padding:15px; display:flex; align-items:center; border-bottom:1px solid var(--border); z-index:100;">
+                        <button class="header-btn" onclick="document.getElementById('mangaReaderView').style.display='none'" style="margin-right:15px;">
+                            <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+                        </button>
+                        <h3 style="margin:0; font-size:1.1rem; text-overflow:ellipsis; overflow:hidden; white-space:nowrap;">${title}</h3>
+                    </div>
+                    <div style="display:flex; flex-direction:column; align-items:center; width:100%; padding-bottom:50px;">
+                `;
+                
+                json.data.forEach(imgUrl => {
+                    html += `<img src="${imgUrl}" style="max-width:100%; width:100%; object-fit:contain; display:block;" loading="lazy">`;
+                });
+                
+                html += `</div>`;
+                reader.innerHTML = html;
+                reader.style.display = 'flex';
+            } else {
+                showToast('Gagal memuat gambar atau kosong.');
+            }
+        })
+        .catch(err => {
+            showToast('Error memuat gambar.');
+        });
+}
+
+
+// MANGA SEARCH LISTENERS
+setTimeout(() => {
+    const btnSearchManga = document.getElementById('btnSearchManga');
+    const searchMangaWrap = document.getElementById('searchMangaWrap');
+    const searchMangaInput = document.getElementById('searchMangaInput');
+    
+    if(btnSearchManga) {
+        btnSearchManga.addEventListener('click', () => {
+            searchMangaWrap.style.display = searchMangaWrap.style.display === 'none' ? 'block' : 'none';
+            if(searchMangaWrap.style.display === 'block') {
+                searchMangaInput.focus();
+            }
+        });
+    }
+    
+    if(searchMangaInput) {
+        searchMangaInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter') {
+                const q = searchMangaInput.value.trim();
+                if(q) {
+                    showToast('Mencari manga...');
+                    fetch(`/api/manga/search?q=${encodeURIComponent(q)}`)
+                        .then(res => res.json())
+                        .then(json => {
+                            if(json.success) renderMangaGrid(json.data);
+                        });
+                } else {
+                    fetchMangaLatest();
+                }
+            }
+        });
+    }
+}, 2000);

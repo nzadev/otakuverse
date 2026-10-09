@@ -1,4 +1,4 @@
-const CACHE_NAME = 'otakuverse-v2.3';
+const CACHE_NAME = 'otakuverse-v2.6';
 const ASSETS = [
   '/',
   '/index.html',

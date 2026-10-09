@@ -1989,11 +1989,45 @@ input:checked + .slider:before {
   }
 
   .hud-top-bar, .hud-bottom-bar {
-    padding: 16px;
+    padding: 12px;
   }
 
   .hud-center-area {
-    gap: 20px;
+    gap: 15px;
+    padding: 0 5vw;
+  }
+  
+  .hud-step-btn {
+    width: 52px;
+    height: 52px;
+  }
+  
+  .hud-step-btn svg {
+    width: 22px;
+    height: 22px;
+  }
+  
+  .center-play-button {
+    width: 68px;
+    height: 68px;
+  }
+  
+  .center-play-button svg {
+    width: 36px;
+    height: 36px;
+  }
+  
+  #videoSpinner svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .hud-select-wrap {
+    display: none; /* Hide server and quality switchers on very small screens to avoid clutter, or make them smaller */
+  }
+
+  .hud-progress-wrap {
+    height: 4px; /* Thicker for touch */
   }
 }
 

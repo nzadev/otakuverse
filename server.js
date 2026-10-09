@@ -418,6 +418,54 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // --- MANGADEX ROUTES ---
+  if (pathname === '/api/manga/latest') {
+    const mangaScraper = require('./manga_scraper');
+    const data = await mangaScraper.getLatestManga();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+  if (pathname === '/api/manga/search') {
+    const q = requestUrl.searchParams.get('q');
+    if(!q) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, data: [] }));
+        return;
+    }
+    const mangaScraper = require('./manga_scraper');
+    const data = await mangaScraper.searchManga(q);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+  if (pathname === '/api/manga/chapters') {
+    const id = requestUrl.searchParams.get('id');
+    if(!id) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, data: [] }));
+        return;
+    }
+    const mangaScraper = require('./manga_scraper');
+    const data = await mangaScraper.getMangaChapters(id);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+  if (pathname === '/api/manga/read') {
+    const chapterId = requestUrl.searchParams.get('id');
+    if(!chapterId) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ success: false, data: [] }));
+        return;
+    }
+    const mangaScraper = require('./manga_scraper');
+    const data = await mangaScraper.getChapterImages(chapterId);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+
   // Image Proxy to bypass hotlink & CORS restrictions
   if (pathname === '/api/image-proxy') {
     const targetUrl = requestUrl.searchParams.get('url');
@@ -686,6 +734,114 @@ const server = http.createServer(async (req, res) => {
   }
 
   // Static File Serving with HTTP 206 Partial Content for Video
+  // Schedule Endpoint
+
+  if (pathname === '/api/history') {
+    const historyFile = path.join(__dirname, 'watch_history.json');
+    
+    if (req.method === 'GET') {
+      try {
+        if (!fs.existsSync(historyFile)) {
+          fs.writeFileSync(historyFile, '[]');
+        }
+        const data = fs.readFileSync(historyFile, 'utf8');
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(data);
+      } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: err.message }));
+      }
+      return;
+    }
+    
+    if (req.method === 'POST') {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          // Verify valid JSON
+          JSON.parse(body);
+          fs.writeFileSync(historyFile, body, 'utf8');
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ success: true }));
+        } catch (err) {
+          res.writeHead(400, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'Invalid JSON' }));
+        }
+      });
+      return;
+    }
+  }
+
+  if (pathname === '/api/schedule') {
+    try {
+      const now = Math.floor(Date.now() / 1000);
+      const nextWeek = now + (7 * 24 * 60 * 60);
+      const query = `
+      query {
+        Page (page: 1, perPage: 100) {
+          airingSchedules (
+            airingAt_greater: ${now}, 
+            airingAt_lesser: ${nextWeek},
+            sort: TIME
+          ) {
+            id
+            episode
+            airingAt
+            media {
+              id
+              title {
+                romaji
+                english
+                native
+                userPreferred
+              }
+              coverImage {
+                large
+                medium
+              }
+              bannerImage
+              episodes
+              status
+              genres
+              season
+              seasonYear
+              isAdult
+              nextAiringEpisode {
+                airingAt
+                timeUntilAiring
+                episode
+              }
+              trailer {
+                id
+                site
+              }
+            }
+          }
+        }
+      }
+      `;
+
+      const response = await axios.post('https://graphql.anilist.co', { query }, { timeout: 15000 });
+      const schedules = response.data.data.Page.airingSchedules || [];
+      
+      const mapped = schedules.map(s => {
+        return {
+          airingAt: s.airingAt,
+          episode: s.episode,
+          media: transformMedia(s.media)
+        };
+      });
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: true, data: mapped }));
+    } catch (e) {
+      console.error('Schedule fetch error:', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: false, error: e.message }));
+    }
+  }
+
   let filePath = path.join(ROOT, pathname === '/' ? 'index.html' : pathname);
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || 'application/octet-stream';
@@ -760,3 +916,5 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`[OtakuVerse Engine v2.2] Server berjalan di http://localhost:${PORT}`);
   console.log(`[OtakuVerse Engine v2.2] Streaming Video HTTP Range 206 Activated.`);
 });
+
+

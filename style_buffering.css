@@ -1,15 +1,35 @@
 /* Loading spinner for buffering state */
 .video-container.is-buffering .center-play-button {
-  opacity: 1 !important;
-  visibility: visible !important;
-  pointer-events: none;
-  background: rgba(0, 0, 0, 0.4);
+  opacity: 0 !important;
+  visibility: hidden !important;
 }
 
-.video-container.is-buffering .center-play-button svg {
-  animation: spin 1s linear infinite;
-  stroke: white;
-  stroke-width: 2;
-  fill: none;
+.video-container.is-buffering #videoSpinner {
+  display: flex !important;
+  opacity: 1 !important;
+  visibility: visible !important;
 }
-@keyframes spin { 100% { transform: rotate(360deg); } }
+
+#videoSpinner {
+  pointer-events: none;
+}
+
+.spinner-svg {
+  animation: rotate 2s linear infinite;
+}
+
+.spinner-svg circle {
+  stroke-dasharray: 1, 200;
+  stroke-dashoffset: 0;
+  animation: dash 1.5s ease-in-out infinite;
+}
+
+@keyframes rotate {
+  100% { transform: rotate(360deg); }
+}
+
+@keyframes dash {
+  0% { stroke-dasharray: 1, 200; stroke-dashoffset: 0; }
+  50% { stroke-dasharray: 89, 200; stroke-dashoffset: -35; }
+  100% { stroke-dasharray: 89, 200; stroke-dashoffset: -124; }
+}

@@ -18,6 +18,23 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <!-- Entrance Animation Splash Screen -->
+  <div id="splashScreen" style="position: fixed; inset: 0; background: #0b0f19; z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; animation: splashFadeOut 0.8s ease-in-out 1.5s forwards;">
+    <img src="logo.jpg" alt="Otakuverse Logo" style="width: 120px; height: 120px; border-radius: 30px; box-shadow: 0 0 40px rgba(0, 240, 255, 0.4); animation: splashPulse 1.5s ease-in-out forwards;">
+    <div style="margin-top: 24px; font-family: 'Plus Jakarta Sans', sans-serif; font-size: 24px; font-weight: 800; color: #fff; letter-spacing: 2px;">OTAKU<span style="color: #00f0ff;">VERSE</span></div>
+  </div>
+  
+  <style>
+    @keyframes splashPulse {
+      0% { transform: scale(0.9); opacity: 0; }
+      50% { transform: scale(1.05); opacity: 1; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes splashFadeOut {
+      to { opacity: 0; visibility: hidden; }
+    }
+  </style>
+
   <div class="ambient-glow glow-top" aria-hidden="true"></div>
   <div class="ambient-glow glow-bottom" aria-hidden="true"></div>
 
@@ -27,7 +44,7 @@
     <!-- DESKTOP SIDEBAR NAVIGATION -->
     <aside class="aniyomi-sidebar">
       <div class="sidebar-brand">
-        <div class="brand-badge-icon">オ</div>
+        <img src="logo.jpg" alt="Logo" class="brand-badge-icon" style="border-radius: 8px; width: 36px; height: 36px; object-fit: cover; display: inline-block;">
         <div class="brand-text-wrap">
           <span class="brand-name">OTAKU<span class="accent-text">VERSE</span></span>
           <span class="brand-edition">ANIYOMI WEB</span>
@@ -41,6 +58,26 @@
             <polyline points="17 2 12 7 7 2"></polyline>
           </svg>
           <span class="nav-label">Anime</span>
+        </button>
+
+        <!-- MANGA HIDDEN PER USER REQUEST
+        <button type="button" class="nav-item" data-tab="manga">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+          </svg>
+          <span class="nav-label">Manga</span>
+        </button>
+        -->
+
+        <button type="button" class="nav-item" data-tab="schedule">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="16" y1="2" x2="16" y2="6"></line>
+            <line x1="8" y1="2" x2="8" y2="6"></line>
+            <line x1="3" y1="10" x2="21" y2="10"></line>
+          </svg>
+          <span class="nav-label">Jadwal</span>
         </button>
 
         <button type="button" class="nav-item" data-tab="library">
@@ -80,12 +117,12 @@
           <span class="nav-label">Install ke HP (PWA)</span>
         </button>
 
-        <a href="https://github.com/nzadev/otakuverse/raw/main/otakuverse.apk" class="nav-item" download style="text-decoration: none; margin-top: 10px;">
+        <a href="download.html" class="nav-item" target="_blank" style="text-decoration: none; margin-top: 10px;">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
             <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
             <line x1="12" y1="18" x2="12.01" y2="18"></line>
           </svg>
-          <span class="nav-label">Unduh APK (Android)</span>
+          <span class="nav-label">Unduh Aplikasi</span>
         </a>
       </nav>
 
@@ -109,6 +146,26 @@
           <polyline points="17 2 12 7 7 2"></polyline>
         </svg>
         <span>Anime</span>
+      </button>
+
+      <!-- MANGA HIDDEN PER USER REQUEST
+      <button type="button" class="bottom-nav-item" data-tab="manga">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
+        </svg>
+        <span>Manga</span>
+      </button>
+      -->
+
+      <button type="button" class="bottom-nav-item" data-tab="schedule">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+          <line x1="16" y1="2" x2="16" y2="6"></line>
+          <line x1="8" y1="2" x2="8" y2="6"></line>
+          <line x1="3" y1="10" x2="21" y2="10"></line>
+        </svg>
+        <span>Jadwal</span>
       </button>
 
       <button type="button" class="bottom-nav-item" data-tab="library">
@@ -135,7 +192,7 @@
         <span>Pengaturan</span>
       </button>
 
-      <a href="https://github.com/nzadev/otakuverse/raw/main/otakuverse.apk" class="bottom-nav-item" download style="text-decoration: none;">
+      <a href="download.html" class="bottom-nav-item" target="_blank" style="text-decoration: none;">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
           <line x1="12" y1="18" x2="12.01" y2="18"></line>
@@ -273,6 +330,50 @@
             <span id="loadMoreText">Muat Anime Lainnya ⬇</span>
             <span class="load-more-spinner hidden" id="loadMoreSpinner">⏳</span>
           </button>
+        </div>
+      </section>
+
+      <!-- TAB 1.5: MANGA -->
+      <section class="tab-view" id="viewManga">
+        <div class="content-header">
+          <h2>Koleksi Manga</h2>
+          <div class="header-actions">
+            <button type="button" class="header-btn" id="btnSearchManga">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="11" cy="11" r="8"></circle>
+                <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Search Bar Manga -->
+        <div class="search-bar-wrap" id="searchMangaWrap" style="display:none; margin-bottom: 20px;">
+          <input type="text" class="search-input" id="searchMangaInput" placeholder="Cari judul manga (cth: Solo Leveling)...">
+        </div>
+
+        <div class="anime-grid" id="mangaGrid">
+          <!-- Rendered dynamically -->
+        </div>
+      </section>
+
+      <!-- TAB 1.5: SCHEDULE (JADWAL) -->
+      <section class="tab-view" id="viewSchedule">
+        <div class="content-header">
+          <h2>Jadwal Rilis Anime (On-Going)</h2>
+          <p style="color:var(--text-dim); margin-top: 4px; font-size: 0.9rem;">
+            Jadwal tayang anime berdasarkan zona Waktu Indonesia Barat (WIB).
+          </p>
+        </div>
+        
+        <div class="schedule-days-container" style="margin-top: 15px; margin-bottom: 25px;">
+          <div class="schedule-day-tabs" id="scheduleDayTabs" style="display: flex; gap: 10px; overflow-x: auto; padding-bottom: 10px; scrollbar-width: none;">
+            <!-- Day buttons rendered via JS -->
+          </div>
+        </div>
+
+        <div class="anime-grid" id="scheduleGrid">
+          <!-- Schedule cards rendered via JS -->
         </div>
       </section>
 
@@ -460,8 +561,16 @@
             
             <div class="setting-row">
               <div class="setting-info">
-                <span class="setting-title">Akses Fitur Pengembang &amp; Diagnostik</span>
-                <span class="setting-desc">Buka kunci alat inspeksi jaringan, debugging performa, dan log sistem internal.</span>
+                <span class="setting-title">Akses Fitur Pengembang &amp; Brankas Khusus</span>
+                <span class="setting-desc">Buka kunci fitur stream injector, unduh video, dan koleksi tayangan malam</span>
+              </div>
+              <div class="setting-control" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                <button type="button" class="cta-btn secondary-cta" id="btnChangeAdminPin" style="border-color: rgba(139, 92, 246, 0.4); padding: 8px 14px;">
+                  <span>⚙️ Ganti PIN</span>
+                </button>
+                <button type="button" class="cta-btn primary-cta" id="btnToggleAdmin" style="border-color: rgba(139, 92, 246, 0.4); padding: 8px 14px;">
+                  <span id="btnToggleAdminText">🔑 Buka Kunci Akses</span>
+                </button>
               </div>
             </div>
 
@@ -530,6 +639,7 @@
             <span class="info-chip" id="detailSeasonYear">Fall 2026</span>
             <span class="info-chip" id="detailTotalEps">24 Episode</span>
             <span class="info-chip" id="detailType">TV Series</span>
+            <span class="info-chip highlight-chip" id="detailSchedule" style="display: none; background: rgba(94, 92, 230, 0.2); color: #c4b5fd; border: 1px solid rgba(139, 92, 246, 0.3);"></span>
           </div>
 
           <!-- Aniyomi Action Bar -->
@@ -690,11 +800,18 @@
               <span class="step-num">10</span>
             </button>
 
-            <button type="button" class="center-play-button" id="centerPlayButton" title="Play/Pause (Space)">
-              <svg id="centerPlayIcon" viewBox="0 0 24 24" width="46" height="46" fill="currentColor">
-                <polygon points="5 3 19 12 5 21 5 3"></polygon>
-              </svg>
-            </button>
+            <div style="position: relative; display: flex; justify-content: center; align-items: center;">
+              <button type="button" class="center-play-button" id="centerPlayButton" title="Play/Pause (Space)">
+                <svg id="centerPlayIcon" viewBox="0 0 24 24" width="46" height="46" fill="currentColor">
+                  <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+              </button>
+              <div id="videoSpinner" class="hidden" style="position: absolute; pointer-events: none;">
+                <svg viewBox="0 0 50 50" width="46" height="46" class="spinner-svg">
+                  <circle cx="25" cy="25" r="20" fill="none" stroke="var(--primary)" stroke-width="5" stroke-linecap="round"></circle>
+                </svg>
+              </div>
+            </div>
 
             <button type="button" class="hud-step-btn" id="btnForward10" title="Maju 10 Detik (L / →)">
               <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
