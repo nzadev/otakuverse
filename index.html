@@ -412,6 +412,39 @@
             </div>
           </div>
 
+          <!-- Secret Admin & Special 18+ Access Card -->
+          <div class="settings-card admin-settings-card" id="adminSettingsCard" style="border: 1px solid rgba(236, 72, 153, 0.4); background: linear-gradient(135deg, rgba(236, 72, 153, 0.05), rgba(168, 85, 247, 0.05));">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <h3 class="card-heading" style="color: #f472b6; margin-bottom: 0;">🔞 Mode Admin &amp; Akses Spesial (VIP 18+)</h3>
+              <span class="status-pill" id="adminStatusPill" style="background: rgba(236, 72, 153, 0.2); color: #f472b6; border-color: #ec4899;">Terkunci 🔒</span>
+            </div>
+            
+            <div class="setting-row">
+              <div class="setting-info">
+                <span class="setting-title">Aktivasi Mode Spesial (Ahegao / Ecchi / 18+ Vault)</span>
+                <span class="setting-desc">Buka katalog tersembunyi anime dewasa (DxD, Yosuga no Sora, Overflow, dll) &amp; fitur dev</span>
+              </div>
+              <div class="setting-control" style="display: flex; gap: 8px;">
+                <button type="button" class="cta-btn primary-cta" id="btnToggleAdmin" style="background: linear-gradient(135deg, #ec4899, #8b5cf6); border: none;">
+                  <span id="btnToggleAdminText">🔓 Masukkan PIN (6969)</span>
+                </button>
+              </div>
+            </div>
+
+            <div id="adminControlsArea" class="hidden" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;">
+              <div class="setting-row">
+                <div class="setting-info">
+                  <span class="setting-title">Custom Video Stream Injector</span>
+                  <span class="setting-desc">Tes dan putar langsung URL MP4 / m3u8 / iframe khusus ke MPV Player</span>
+                </div>
+                <div class="setting-control" style="display: flex; gap: 6px; flex: 1; max-width: 340px;">
+                  <input type="text" id="adminCustomStreamInput" placeholder="https://.../video.mp4" class="num-input" style="flex: 1; font-size: 0.8rem; text-align: left; padding: 6px 10px;">
+                  <button type="button" class="cta-btn secondary-cta" id="btnAdminPlayCustom" style="padding: 6px 12px; font-size: 0.8rem;">Putar</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           <!-- About Card -->
           <div class="settings-card">
             <h3 class="card-heading">ℹ️ Tentang OTAKUVERSE</h3>
@@ -564,6 +597,7 @@
               </div>
 
               <!-- Quality Switcher -->
+              <!-- Quality Switcher -->
               <div class="hud-select-wrap">
                 <span class="hud-label">Kualitas:</span>
                 <select id="qualitySelect" class="hud-select" aria-label="Pilih Kualitas Video">
@@ -573,6 +607,14 @@
                   <option value="360">360p Hemat</option>
                 </select>
               </div>
+
+              <!-- Quick Server Switch & Download -->
+              <button type="button" class="hud-action-btn" id="btnQuickFallbackServer" title="Server Error? Klik untuk ganti ke mirror cadangan lain" style="font-size: 0.75rem; padding: 5px 9px; background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 6px; color: var(--text-primary); cursor: pointer;">
+                🔄 Cadangan
+              </button>
+              <a id="btnDownloadStream" class="hud-action-btn hidden" download title="Unduh File Video Langsung" target="_blank" rel="noopener" style="font-size: 0.75rem; padding: 5px 9px; background: rgba(99, 102, 241, 0.2); border: 1px solid #6366f1; border-radius: 6px; color: #a5b4fc; text-decoration: none; cursor: pointer;">
+                ⬇️ Unduh
+              </a>
             </div>
           </div>
 
@@ -685,6 +727,6 @@
   <!-- Toast Notification -->
   <div class="toast-notification" id="toastNotice" role="alert"></div>
 
-  <script src="app.js?v=3.9.4"></script>
+  <script src="app.js?v=3.9.5"></script>
 </body>
 </html>

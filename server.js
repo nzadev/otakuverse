@@ -454,10 +454,34 @@ const server = http.createServer(async (req, res) => {
         streams = await scraper.getOtakudesuStreams(targetUrl);
       }
 
-      // Auto-resolve stream by title and romaji for AniList or other sources
-      if (streams.length === 0 && (title || romaji)) {
-        streams = await scraper.resolveStreamByTitle(title, episode, romaji);
+      // Always resolve cross-source mirrors (Otakudesu + Samehadaku) to supply healthy Direct MP4 streams
+      // even if targetUrl has dead/expired Mega links
+      if (title || romaji) {
+        const resolvedStreams = await scraper.resolveStreamByTitle(title, episode, romaji, source);
+        if (resolvedStreams && resolvedStreams.length > 0) {
+          const seen = new Set(streams.map(s => s.url));
+          for (const s of resolvedStreams) {
+            if (!seen.has(s.url)) {
+              seen.add(s.url);
+              streams.push(s);
+            }
+          }
+        }
       }
+
+      // Sort streams with hardware acceleration score: Direct MP4 > Clean Embeds > Mega (penalty)
+      const scoreStream = (s) => {
+        let score = 0;
+        if (s.type === 'video') score += 1000;
+        if (s.quality === '1080p') score += 400;
+        else if (s.quality === '720p') score += 300;
+        else if (s.quality === '480p') score += 200;
+        else if (s.quality === '360p') score += 100;
+        if (s.url && s.url.includes('mega.nz')) score -= 500;
+        if (s.isBlogger || (s.url && s.url.includes('blogger.com'))) score -= 300;
+        return score;
+      };
+      streams.sort((a, b) => scoreStream(b) - scoreStream(a));
     } catch (err) {
       console.warn('Scraper stream error:', err.message);
     }
@@ -488,6 +512,20 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // Secret Admin & Special 18+ Anime Vault API
+  if (pathname === '/api/special-anime') {
+    const specialFile = path.join(__dirname, 'data', 'special_anime.json');
+    let specialItems = [];
+    if (fs.existsSync(specialFile)) {
+      try {
+        specialItems = JSON.parse(fs.readFileSync(specialFile, 'utf8'));
+      } catch (e) {}
+    }
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, count: specialItems.length, items: specialItems }));
+    return;
+  }
+
   if (pathname === '/api/anime') {
     const source = requestUrl.searchParams.get('source') || 'all';
     const page = requestUrl.searchParams.get('page') || '1';
@@ -496,6 +534,26 @@ const server = http.createServer(async (req, res) => {
     const genre = requestUrl.searchParams.get('genre') || '';
     const status = requestUrl.searchParams.get('status') || '';
     const sort = requestUrl.searchParams.get('sort') || 'trending';
+
+    // Route Special 18+ / Ecchi genre filter
+    if (genre.toLowerCase().includes('spesial') || genre.toLowerCase().includes('18+') || genre.toLowerCase() === 'ecchi') {
+      const specialFile = path.join(__dirname, 'data', 'special_anime.json');
+      let specialItems = [];
+      if (fs.existsSync(specialFile)) {
+        try {
+          specialItems = JSON.parse(fs.readFileSync(specialFile, 'utf8'));
+        } catch (e) {}
+      }
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        success: true,
+        count: specialItems.length,
+        items: specialItems,
+        source: 'Vault 18+ (VIP)',
+        pageInfo: { hasNextPage: false, currentPage: 1 }
+      }));
+      return;
+    }
 
     // Route to live Samehadaku scraper
     if (source === 'samehadaku') {

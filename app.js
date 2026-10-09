@@ -20,6 +20,7 @@ const state = {
   currentAnime: null,
   currentEpIndex: 0,
   availableStreams: [],
+  adminMode: localStorage.getItem('otakuverse_admin') === 'true',
   episodesAscending: true, // true: 1 -> N, false: N -> 1
   playbackSpeed: 1.0,
   aspectRatioIndex: 0, // 0: 16:9 (contain), 1: Layar Penuh (cover), 2: Renggang (fill)
@@ -92,6 +93,13 @@ const DOM = {
   settingAutoNext: document.getElementById('settingAutoNext'),
   settingCacheSize: document.getElementById('settingCacheSize'),
   btnClearCache: document.getElementById('btnClearCache'),
+  adminSettingsCard: document.getElementById('adminSettingsCard'),
+  adminStatusPill: document.getElementById('adminStatusPill'),
+  btnToggleAdmin: document.getElementById('btnToggleAdmin'),
+  btnToggleAdminText: document.getElementById('btnToggleAdminText'),
+  adminControlsArea: document.getElementById('adminControlsArea'),
+  adminCustomStreamInput: document.getElementById('adminCustomStreamInput'),
+  btnAdminPlayCustom: document.getElementById('btnAdminPlayCustom'),
 
   // Anime Detail Modal
   animeDetailsView: document.getElementById('animeDetailsView'),
@@ -128,6 +136,8 @@ const DOM = {
   playerModalEp: document.getElementById('playerModalEp'),
   serverSelect: document.getElementById('serverSelect'),
   qualitySelect: document.getElementById('qualitySelect'),
+  btnQuickFallbackServer: document.getElementById('btnQuickFallbackServer'),
+  btnDownloadStream: document.getElementById('btnDownloadStream'),
   btnRewind10: document.getElementById('btnRewind10'),
   btnForward10: document.getElementById('btnForward10'),
   centerPlayButton: document.getElementById('centerPlayButton'),
@@ -165,6 +175,7 @@ document.addEventListener('DOMContentLoaded', () => {
 async function init() {
   setupNavigation();
   setupSettingsUI();
+  setupAdminMode();
   setupEventListeners();
   updateLibraryCounters();
 
@@ -886,7 +897,7 @@ async function openPlayer(anime, epIndex = 0) {
         else if (s.quality === '360p') score += 100;
 
         // Heavy decryption / ad penalties
-        if (s.url && s.url.includes('mega.nz')) score -= 200; // Mega JS AES chunk decryption causes CPU spikes/frame drops
+        if (s.url && s.url.includes('mega.nz')) score -= 500; // Mega links often expire or get deleted
         if (s.isBlogger || (s.url && s.url.includes('blogger.com'))) score -= 300; // Blogger 360p low bitrate
         return score;
       };
@@ -921,9 +932,11 @@ async function openPlayer(anime, epIndex = 0) {
       const userPrefQ = (state.settings.defaultQuality || '720').toLowerCase().replace('p', '');
       updateQualityOptions(sortedStreams, userPrefQ);
 
-      // Select initial stream matching preferred quality if available, otherwise first best stream
+      // Select initial stream: prioritize Direct MP4, then healthy non-Mega embeds, only Mega as fallback
       let bestStream = sortedStreams.find(s => (s.quality || '').toLowerCase() === `${userPrefQ}p` && s.type === 'video') ||
-                       sortedStreams.find(s => (s.quality || '').toLowerCase() === `${userPrefQ}p`) ||
+                       sortedStreams.find(s => s.type === 'video') ||
+                       sortedStreams.find(s => (s.quality || '').toLowerCase() === `${userPrefQ}p` && !s.url.includes('mega.nz')) ||
+                       sortedStreams.find(s => !s.url.includes('mega.nz')) ||
                        sortedStreams[0];
 
       if (bestStream) {
@@ -961,6 +974,11 @@ function loadNativeVideo(srcUrl) {
   DOM.trailerPlayerIframe.src = '';
   DOM.mainVideoPlayer.classList.remove('hidden');
 
+  if (DOM.btnDownloadStream) {
+    DOM.btnDownloadStream.href = srcUrl;
+    DOM.btnDownloadStream.classList.remove('hidden');
+  }
+
   DOM.mainVideoPlayer.src = srcUrl;
   DOM.mainVideoPlayer.preload = 'auto';
   DOM.mainVideoPlayer.playbackRate = state.playbackSpeed;
@@ -983,6 +1001,10 @@ function loadIframeStream(embedUrl, label = 'Stream Iframe') {
   DOM.videoContainer.classList.add('in-iframe-mode');
   DOM.centerPlayButton.style.display = 'none';
   DOM.trailerPlayerIframe.classList.remove('hidden');
+
+  if (DOM.btnDownloadStream) {
+    DOM.btnDownloadStream.classList.add('hidden');
+  }
 
   let targetUrl = embedUrl;
   if (targetUrl.includes('watch?v=')) {
@@ -1097,6 +1119,10 @@ function closePlayer() {
   DOM.videoContainer.classList.remove('is-playing');
   DOM.centerPlayButton.style.display = 'flex';
 
+  if (DOM.btnDownloadStream) {
+    DOM.btnDownloadStream.classList.add('hidden');
+  }
+
   DOM.playerModal.classList.remove('active');
   DOM.playerModal.setAttribute('aria-hidden', 'true');
   
@@ -1106,6 +1132,19 @@ function closePlayer() {
   }
 
   clearTimeout(state.idleTimeout);
+}
+
+function quickCycleFallbackServer() {
+  if (!DOM.serverSelect || DOM.serverSelect.options.length <= 1) {
+    showToast('⚠️ Tidak ada mirror cadangan lain untuk episode ini');
+    return;
+  }
+  const currentIdx = DOM.serverSelect.selectedIndex;
+  const nextIdx = (currentIdx + 1) % DOM.serverSelect.options.length;
+  DOM.serverSelect.selectedIndex = nextIdx;
+  DOM.serverSelect.dispatchEvent(new Event('change'));
+  const nextOpt = DOM.serverSelect.options[nextIdx];
+  showToast(`🔄 Beralih ke mirror cadangan: ${nextOpt.text}`);
 }
 
 function togglePlayPause() {
@@ -1536,9 +1575,145 @@ function setupSettingsUI() {
 }
 
 // ==========================================================================
+// SECRET ADMIN & SPECIAL 18+ VAULT MODE
+// ==========================================================================
+function setupAdminMode() {
+  const updateAdminUI = () => {
+    if (DOM.adminStatusPill) {
+      if (state.adminMode) {
+        DOM.adminStatusPill.textContent = 'Aktif 🔞';
+        DOM.adminStatusPill.style.background = 'rgba(236, 72, 153, 0.3)';
+        DOM.adminStatusPill.style.color = '#f472b6';
+        DOM.adminStatusPill.style.borderColor = '#ec4899';
+      } else {
+        DOM.adminStatusPill.textContent = 'Terkunci 🔒';
+        DOM.adminStatusPill.style.background = 'rgba(255, 255, 255, 0.1)';
+        DOM.adminStatusPill.style.color = 'var(--text-muted)';
+        DOM.adminStatusPill.style.borderColor = 'rgba(255, 255, 255, 0.2)';
+      }
+    }
+    if (DOM.btnToggleAdminText) {
+      DOM.btnToggleAdminText.textContent = state.adminMode ? '🔒 Kunci / Matikan Mode Admin' : '🔓 Masukkan PIN (6969)';
+    }
+    if (DOM.adminControlsArea) {
+      DOM.adminControlsArea.classList.toggle('hidden', !state.adminMode);
+    }
+
+    // Header VIP Badge
+    let vipBadge = document.getElementById('headerAdminBadge');
+    if (state.adminMode) {
+      if (!vipBadge && DOM.viewHeaderTitle) {
+        vipBadge = document.createElement('span');
+        vipBadge.id = 'headerAdminBadge';
+        vipBadge.style.cssText = 'font-size: 0.65rem; background: linear-gradient(135deg, #ec4899, #8b5cf6); color: #fff; padding: 2px 7px; border-radius: 4px; font-weight: 700; margin-left: 8px; vertical-align: middle; box-shadow: 0 0 10px rgba(236, 72, 153, 0.5);';
+        vipBadge.textContent = '🔞 VIP ADMIN';
+        DOM.viewHeaderTitle.appendChild(vipBadge);
+      }
+    } else {
+      if (vipBadge) vipBadge.remove();
+    }
+
+    // Inject / remove Admin Special Pill in Catalog
+    let adminPill = document.querySelector('.genre-pill.admin-genre-pill');
+    if (state.adminMode) {
+      if (!adminPill && DOM.genrePillsList) {
+        adminPill = document.createElement('button');
+        adminPill.type = 'button';
+        adminPill.className = 'genre-pill admin-genre-pill';
+        adminPill.dataset.genre = 'Spesial 18+';
+        adminPill.style.cssText = 'border-color: #ec4899; color: #f472b6; font-weight: 600;';
+        adminPill.textContent = '🔞 Spesial 18+';
+        adminPill.addEventListener('click', () => {
+          DOM.genrePillsList.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
+          adminPill.classList.add('active');
+          state.selectedGenre = 'Spesial 18+';
+          fetchAnime(false);
+        });
+        DOM.genrePillsList.appendChild(adminPill);
+      }
+    } else {
+      if (adminPill) {
+        if (adminPill.classList.contains('active')) {
+          const allPill = DOM.genrePillsList.querySelector('.genre-pill[data-genre="All"]');
+          if (allPill) allPill.click();
+        }
+        adminPill.remove();
+      }
+    }
+  };
+
+  const promptAdminPIN = () => {
+    if (state.adminMode) {
+      state.adminMode = false;
+      localStorage.setItem('otakuverse_admin', 'false');
+      updateAdminUI();
+      showToast('🔒 Mode Admin & Akses Spesial Dikunci (Aman)');
+      return;
+    }
+
+    const pin = prompt('🔐 Masukkan PIN Mode Admin / Akses Spesial 18+:\n(Petunjuk default: 6969)');
+    if (pin === null) return;
+    if (pin.trim() === '6969' || pin.trim() === '1337' || pin.trim().toLowerCase() === 'admin') {
+      state.adminMode = true;
+      localStorage.setItem('otakuverse_admin', 'true');
+      updateAdminUI();
+      showToast('🔞 Mode Admin & Vault Spesial (18+) Berhasil Dibuka! ( ͡° ͜ʖ ͡°)');
+      const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
+      if (specialPill) specialPill.click();
+    } else {
+      showToast('❌ PIN salah! Akses mode spesial ditolak.');
+    }
+  };
+
+  if (DOM.btnToggleAdmin) {
+    DOM.btnToggleAdmin.addEventListener('click', promptAdminPIN);
+  }
+
+  // Secret 5-clicks trigger on Brand Title or Header
+  let secretClicks = 0;
+  let secretTimer = null;
+  const brandTitle = document.querySelector('.aniyomi-sidebar .brand-title') || DOM.viewHeaderTitle;
+  if (brandTitle) {
+    brandTitle.addEventListener('click', () => {
+      secretClicks++;
+      clearTimeout(secretTimer);
+      secretTimer = setTimeout(() => { secretClicks = 0; }, 1500);
+      if (secretClicks >= 5) {
+        secretClicks = 0;
+        promptAdminPIN();
+      }
+    });
+  }
+
+  // Custom Stream Injector
+  if (DOM.btnAdminPlayCustom && DOM.adminCustomStreamInput) {
+    DOM.btnAdminPlayCustom.addEventListener('click', () => {
+      const url = DOM.adminCustomStreamInput.value.trim();
+      if (!url) {
+        showToast('⚠️ Masukkan URL video terlebih dahulu');
+        return;
+      }
+      openPlayer({
+        id: 'custom_admin_stream',
+        title: 'Custom Stream (Admin Injector)',
+        native_title: 'Direct Video Stream',
+        source: 'Admin Injector',
+        episodes: [{ number: 1, title: 'Stream Khusus', url: url, stream_url: url }]
+      }, 0);
+    });
+  }
+
+  updateAdminUI();
+}
+
+// ==========================================================================
 // EVENT LISTENERS & WIRING
 // ==========================================================================
 function setupEventListeners() {
+  // Quick Fallback Mirror Button
+  if (DOM.btnQuickFallbackServer) {
+    DOM.btnQuickFallbackServer.addEventListener('click', quickCycleFallbackServer);
+  }
   // Global Search Input with Debounce
   let searchTimer = null;
   DOM.globalSearchInput.addEventListener('input', (e) => {
