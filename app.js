@@ -379,6 +379,7 @@ async function fetchAniListDirect({ page = 1, perPage = 30, search = '', genre =
         }
         media(type: ANIME, isAdult: $isAdult, search: $search, genre: $genre, status: $status, sort: $sort) {
           id
+          isAdult
           title { romaji english native }
           coverImage { extraLarge large }
           bannerImage
@@ -450,6 +451,7 @@ async function fetchAniListDirect({ page = 1, perPage = 30, search = '', genre =
       titles: m.title || {},
       genre: (m.genres && m.genres[0]) || 'Action',
       genres: m.genres || ['Action'],
+      isAdult: m.isAdult || false,
       type: 'TV Series',
       rating: m.averageScore ? (m.averageScore / 10).toFixed(1) : '8.5',
       score: m.averageScore ? (m.averageScore / 10).toFixed(1) : 8.5,
@@ -1058,6 +1060,19 @@ async function openPlayer(anime, epIndex = 0) {
   showToast(`🔍 Mengambil video asli Episode ${currentEp.number} (1080p/720p)...`);
 
   const romajiName = anime.native_title || (anime.titles && anime.titles.romaji) || '';
+  
+  if (anime.isAdult || anime.genre === 'Hentai') {
+    DOM.serverSelect.innerHTML = `<option value="" disabled selected>⚠️ Server Publik Tidak Tersedia</option>`;
+    showToast('⚠️ Anime khusus 18+ tidak didukung oleh scraper publik (Otakudesu/Samehadaku). Memutar sampel video.', 5000);
+    // Load a sample or nothing
+    if (anime.trailer_url) {
+      loadIframeStream(anime.trailer_url, 'Trailer Resmi');
+    } else {
+      closePlayer();
+    }
+    return;
+  }
+
   const queryParams = new URLSearchParams({
     source: targetSource,
     url: targetUrl,

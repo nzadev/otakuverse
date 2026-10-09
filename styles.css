@@ -1951,12 +1951,41 @@ input:checked + .slider:before {
     text-align: center;
   }
 
+  .detail-poster-wrap {
+    width: 140px;
+    margin-bottom: -16px;
+  }
+
+  .detail-content-container {
+    margin-top: -80px;
+  }
+
+  .detail-backdrop-wrap {
+    height: 220px;
+  }
+
   .detail-source-badge {
     align-self: center;
   }
 
   .detail-actions-bar {
     justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    width: 100%;
+  }
+
+  .cta-btn {
+    flex: 1 1 100%;
+    justify-content: center;
+  }
+
+  .cta-btn.icon-btn {
+    flex: 0 0 auto;
+  }
+
+  .episodes-grid-list {
+    grid-template-columns: 1fr;
   }
 
   .hud-top-bar, .hud-bottom-bar {
