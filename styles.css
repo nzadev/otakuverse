@@ -387,6 +387,7 @@ body {
   font-size: 0.7rem;
   color: var(--text-dim);
   font-family: var(--font-mono);
+  white-space: nowrap;
 }
 
 .source-selector-pill {
