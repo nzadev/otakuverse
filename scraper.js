@@ -38,8 +38,27 @@ function fetchCurl(url, extraArgs = []) {
       '-H', 'Referer: https://v2.samehadaku.how/',
       ...extraArgs,
       url
-    ], (err, stdout) => {
-      if (err) return reject(err);
+    ], async (err, stdout) => {
+      if (err) {
+        console.warn(`[fetchCurl] curl failed for ${url}, falling back to native fetch: ${err.message}`);
+        try {
+          const fetchObj = typeof fetch !== 'undefined' ? fetch : (await import('node-fetch')).default;
+          const res = await fetchObj(url, {
+            headers: {
+              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+              'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+              'Referer': 'https://v2.samehadaku.how/'
+            }
+          });
+          if (!res.ok) throw new Error(`Fetch failed with status ${res.status}`);
+          const html = await res.text();
+          cache.set(cacheKey, { time: Date.now(), data: html });
+          return resolve(html);
+        } catch (fetchErr) {
+          return reject(new Error(`Native fetch fallback also failed: ${fetchErr.message}`));
+        }
+      }
       cache.set(cacheKey, { time: Date.now(), data: stdout });
       resolve(stdout);
     });
