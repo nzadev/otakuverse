@@ -1828,26 +1828,13 @@ function recordEpisodeWatch(anime, epNumber) {
   if (!anime) return;
   let item = state.watchlist.find(w => String(w.id) === String(anime.id));
 
-  if (!item) {
-    item = {
-      id: anime.id,
-      title: anime.title,
-      native_title: anime.native_title,
-      poster: anime.poster,
-      score: anime.score,
-      status: anime.status,
-      category: 'watching',
-      lastEpWatched: epNumber,
-      totalEps: anime.episodes_count || (anime.episodes ? anime.episodes.length : 24),
-      addedAt: Date.now()
-    };
-    state.watchlist.unshift(item);
-  } else {
-    item.lastEpWatched = Math.max(item.lastEpWatched, epNumber);
-    item.lastWatchedAt = Date.now();
-    if (item.lastEpWatched >= item.totalEps) {
-      item.category = 'completed';
-    }
+  // Hanya update history/progress jika anime SUDAH ada di watchlist (ditambahkan manual)
+  if (!item) return;
+
+  item.lastEpWatched = Math.max(item.lastEpWatched, epNumber);
+  item.lastWatchedAt = Date.now();
+  if (item.lastEpWatched >= item.totalEps) {
+    item.category = 'completed';
   }
 
   saveWatchlist();
@@ -2155,6 +2142,8 @@ function setupAdminMode() {
   const getAdminPin = () => localStorage.getItem('otakuverse_admin_pin') || '6969';
 
   const updateAdminUI = () => {
+    state.adminMode = state.userProfile && state.userProfile.isAdmin === true;
+    
     // Hide/show extensions tab dynamically based on admin mode
     document.querySelectorAll('.admin-only-tab').forEach(tab => {
       tab.style.display = state.adminMode ? 'flex' : 'none';
@@ -2224,27 +2213,11 @@ function setupAdminMode() {
   };
 
   const promptAdminPIN = () => {
-    if (state.adminMode) {
-      state.adminMode = false;
-      localStorage.setItem('otakuverse_admin', 'false');
-      updateAdminUI();
-      showToast('🔒 Akses Brankas Dikunci (Aman)');
-      return;
-    }
-
-    const pin = prompt('🔐 Masukkan Kode PIN Akses Brankas:');
-    if (pin === null) return;
-    const cleanPin = pin.trim();
-    const currentStoredPin = getAdminPin();
-    if (cleanPin === currentStoredPin || cleanPin === '6969' || cleanPin === '1337' || cleanPin.toLowerCase() === 'admin') {
-      state.adminMode = true;
-      localStorage.setItem('otakuverse_admin', 'true');
-      updateAdminUI();
-      showToast('🔓 Akses Brankas Berhasil Dibuka');
-      const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
-      if (specialPill) specialPill.click();
+    if (state.userProfile && state.userProfile.isAdmin) {
+      // Toggle off for testing? Or just show a toast.
+      showToast('Admin Mode Aktif 👑');
     } else {
-      showToast('❌ PIN salah! Akses ditolak.');
+      showToast('❌ Akses ditolak.');
     }
   };
 
@@ -2281,21 +2254,8 @@ function setupAdminMode() {
       }
     };
   }
-  // Secret 5-clicks trigger on Brand Title or Header
-  let secretClicks = 0;
-  let secretTimer = null;
-  const brandTitle = document.querySelector('.aniyomi-sidebar .brand-title') || DOM.viewHeaderTitle;
-  if (brandTitle) {
-    brandTitle.addEventListener('click', () => {
-      secretClicks++;
-      clearTimeout(secretTimer);
-      secretTimer = setTimeout(() => { secretClicks = 0; }, 1500);
-      if (secretClicks >= 5) {
-        secretClicks = 0;
-        promptAdminPIN();
-      }
-    });
-  }
+  // Removed legacy title 5-clicks PIN unlock, moved to Avatar
+  // Admin is now handled by userProfile.isAdmin
 
   // Custom Stream Injector
   if (DOM.btnAdminPlayCustom && DOM.adminCustomStreamInput) {
@@ -3334,6 +3294,25 @@ function renderProfile() {
     profileEmail.textContent = 'Belum Login - Progress tersimpan di perangkat';
     profileImg.src = 'logo.jpg';
     btnLogout.style.display = 'none';
+  }
+  
+  // Setup secret admin click on avatar
+  if (!profileImg.dataset.adminListener) {
+    profileImg.dataset.adminListener = 'true';
+    let avatarClicks = 0;
+    let avatarTimer = null;
+    profileImg.addEventListener('click', () => {
+      avatarClicks++;
+      clearTimeout(avatarTimer);
+      avatarTimer = setTimeout(() => { avatarClicks = 0; }, 2000);
+      if (avatarClicks >= 7) {
+        avatarClicks = 0;
+        state.userProfile.isAdmin = !state.userProfile.isAdmin;
+        saveUserProfile();
+        setupAdminMode(); // Refresh admin UI
+        showToast(state.userProfile.isAdmin ? '👑 Mode Admin Diaktifkan (Super User)' : '🔒 Mode Admin Dinonaktifkan');
+      }
+    });
   }
   
   // Set gamification data
