@@ -1501,8 +1501,8 @@ async function openPlayer(anime, epIndex = 0) {
       // Select initial stream: prioritize Direct MP4, then healthy non-Mega embeds, only Mega as fallback
       let bestStream = sortedStreams.find(s => (s.quality || '').toLowerCase() === `${userPrefQ}p` && s.type === 'video') ||
                        sortedStreams.find(s => s.type === 'video') ||
-                       sortedStreams.find(s => (s.quality || '').toLowerCase() === `${userPrefQ}p` && !s.url.includes('mega.nz')) ||
-                       sortedStreams.find(s => !s.url.includes('mega.nz')) ||
+                       sortedStreams.find(s => (s.quality || '').toLowerCase() === `${userPrefQ}p` && (!s.url || !s.url.includes('mega.nz'))) ||
+                       sortedStreams.find(s => (!s.url || !s.url.includes('mega.nz'))) ||
                        sortedStreams[0];
 
       if (bestStream) {
@@ -3581,7 +3581,7 @@ function renderCarousel(containerId, items) {
     `;
     
     card.addEventListener('click', () => {
-      openPlayer(anime, 0);
+      openAnimeDetails(anime);
     });
     
     container.appendChild(card);
