@@ -773,59 +773,150 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  if (pathname === '/api/schedule') {
+  if (pathname === '/api/schedule/upcoming') {
     try {
-      const now = Math.floor(Date.now() / 1000);
-      const nextWeek = now + (7 * 24 * 60 * 60);
       const query = `
       query {
-        Page (page: 1, perPage: 100) {
-          airingSchedules (
-            airingAt_greater: ${now}, 
-            airingAt_lesser: ${nextWeek},
-            sort: TIME
-          ) {
+        Page (page: 1, perPage: 30) {
+          media(type: ANIME, status: NOT_YET_RELEASED, sort: POPULARITY_DESC) {
             id
-            episode
-            airingAt
-            media {
+            title {
+              romaji
+              english
+              native
+              userPreferred
+            }
+            coverImage {
+              large
+              medium
+            }
+            bannerImage
+            episodes
+            status
+            genres
+            season
+            seasonYear
+            isAdult
+            trailer {
               id
-              title {
-                romaji
-                english
-                native
-                userPreferred
-              }
-              coverImage {
-                large
-                medium
-              }
-              bannerImage
-              episodes
-              status
-              genres
-              season
-              seasonYear
-              isAdult
-              nextAiringEpisode {
-                airingAt
-                timeUntilAiring
-                episode
-              }
-              trailer {
-                id
-                site
-              }
+              site
             }
           }
         }
       }
       `;
 
-      const response = await axios.post('https://graphql.anilist.co', { query }, { timeout: 15000 });
-      const schedules = response.data.data.Page.airingSchedules || [];
+      const response = await fetch('https://graphql.anilist.co', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query }),
+        signal: AbortSignal.timeout(15000)
+      });
+      const responseData = await response.json();
+      const upcoming = responseData.data.Page.media || [];
       
-      const mapped = schedules.map(s => {
+      const mapped = upcoming.map(m => transformMedia(m));
+
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ success: true, data: mapped }));
+    } catch (e) {
+      console.error('Upcoming fetch error:', e.message);
+      res.writeHead(500, { 'Content-Type': 'application/json' });
+      return res.end(JSON.stringify({ error: e.message }));
+    }
+  }
+
+  if (pathname === '/api/schedule') {
+    try {
+      // Set to current week (Monday to Sunday)
+      const now = new Date();
+      const dayOfWeek = now.getDay(); // 0 is Sunday, 1 is Monday...
+      const diffToMonday = now.getDate() - dayOfWeek + (dayOfWeek === 0 ? -6 : 1);
+      
+      const startOfWeek = new Date(now.setDate(diffToMonday));
+      startOfWeek.setHours(0, 0, 0, 0);
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(startOfWeek.getDate() + 6);
+      endOfWeek.setHours(23, 59, 59, 999);
+
+      const startUnix = Math.floor(startOfWeek.getTime() / 1000);
+      const endUnix = Math.floor(endOfWeek.getTime() / 1000);
+
+      let allSchedules = [];
+      let page = 1;
+      let hasNextPage = true;
+
+      while (hasNextPage) {
+        const query = `
+        query {
+          Page (page: ${page}, perPage: 100) {
+            pageInfo {
+              hasNextPage
+            }
+            airingSchedules (
+              airingAt_greater: ${startUnix}, 
+              airingAt_lesser: ${endUnix},
+              sort: TIME
+            ) {
+              id
+              episode
+              airingAt
+              media {
+                id
+                title {
+                  romaji
+                  english
+                  native
+                  userPreferred
+                }
+                coverImage {
+                  large
+                  medium
+                }
+                bannerImage
+                episodes
+                status
+                genres
+                season
+                seasonYear
+                isAdult
+                nextAiringEpisode {
+                  airingAt
+                  timeUntilAiring
+                  episode
+                }
+                trailer {
+                  id
+                  site
+                }
+              }
+            }
+          }
+        }
+        `;
+
+        const response = await fetch('https://graphql.anilist.co', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query }),
+          signal: AbortSignal.timeout(15000)
+        });
+        const responseData = await response.json();
+        
+        if (!responseData.data || !responseData.data.Page) {
+          break;
+        }
+
+        const schedules = responseData.data.Page.airingSchedules || [];
+        allSchedules = allSchedules.concat(schedules);
+        
+        hasNextPage = responseData.data.Page.pageInfo.hasNextPage;
+        page++;
+        
+        if (page > 5) break; // hard limit to prevent infinite loops (500 items max)
+      }
+
+      const mapped = allSchedules.map(s => {
         return {
           airingAt: s.airingAt,
           episode: s.episode,

@@ -3,6 +3,29 @@
 // Native MPV Player HUD, Keiyoushi Extensions Scraper, 4-Tab Navigation & Library
 // ==========================================================================
 
+// --- FIREBASE CONFIGURATION & INIT ---
+const firebaseConfig = {
+  apiKey: "AIzaSyCiW9izykkW7zGbn1BrmTHMDFxwMS4dsHA",
+  authDomain: "otakuverse-702ab.firebaseapp.com",
+  projectId: "otakuverse-702ab",
+  storageBucket: "otakuverse-702ab.firebasestorage.app",
+  messagingSenderId: "461754625546",
+  appId: "1:461754625546:web:345f652faa879875f779f3",
+  measurementId: "G-NKC3CE61RE"
+};
+
+let auth = null;
+let db = null;
+let currentUser = null;
+
+if (typeof firebase !== 'undefined') {
+  firebase.initializeApp(firebaseConfig);
+  auth = firebase.auth();
+  db = firebase.firestore();
+}
+
+// -------------------------------------
+
 const state = {
   activeTab: 'anime', // 'anime' | 'library' | 'extensions' | 'settings'
   allAnime: [],
@@ -231,6 +254,7 @@ async function init() {
   setupAdminMode();
   setupEventListeners();
   updateLibraryCounters();
+  setupFirebaseAuth();
 
   try {
     await fetchExtensions();
@@ -238,6 +262,101 @@ async function init() {
   } catch (err) {
     console.error('Inisialisasi aplikasi gagal:', err);
     showToast('⚠️ Gagal terhubung ke backend server.');
+  }
+}
+
+function setupFirebaseAuth() {
+  if (auth) {
+    auth.onAuthStateChanged((user) => {
+      const authBtnText = document.getElementById('authBtnText');
+      const loginOverlay = document.getElementById('loginOverlay');
+      if (user) {
+        currentUser = user;
+        if (authBtnText) authBtnText.innerText = (user.displayName || "User").split(' ')[0];
+        if (loginOverlay) loginOverlay.classList.add('hidden');
+        
+        syncDataFromFirestore();
+        
+        if (!state.isLoading) {
+          // showToast("Berhasil login sebagai " + user.displayName, "success");
+        }
+      } else {
+        currentUser = null;
+        if (authBtnText) authBtnText.innerText = "Login Google";
+        if (loginOverlay && localStorage.getItem('otakuverse_guest') !== 'true') {
+          loginOverlay.classList.remove('hidden');
+        }
+      }
+    });
+
+    const authBtn = document.getElementById('authBtn');
+    if (authBtn) {
+      authBtn.addEventListener('click', () => {
+        if (currentUser) {
+          if(confirm("Apakah kamu yakin ingin logout?")) {
+            auth.signOut().then(() => showToast("Berhasil logout", "success"));
+          }
+        } else {
+          // Show overlay if trying to login
+          const loginOverlay = document.getElementById('loginOverlay');
+          if (loginOverlay) loginOverlay.classList.remove('hidden');
+        }
+      });
+    }
+
+    const btnOverlayGoogle = document.getElementById('btnOverlayGoogle');
+    const btnOverlayGuest = document.getElementById('btnOverlayGuest');
+    if (btnOverlayGoogle) {
+      btnOverlayGoogle.addEventListener('click', () => {
+        const provider = new firebase.auth.GoogleAuthProvider();
+        auth.signInWithPopup(provider).catch((error) => {
+          console.error(error);
+          showToast("Gagal login: " + error.message, "error");
+        });
+      });
+    }
+    if (btnOverlayGuest) {
+      btnOverlayGuest.addEventListener('click', () => {
+        localStorage.setItem('otakuverse_guest', 'true');
+        const loginOverlay = document.getElementById('loginOverlay');
+        if (loginOverlay) loginOverlay.classList.add('hidden');
+      });
+    }
+  }
+}
+
+async function syncDataFromFirestore() {
+  if (!currentUser || !db) return;
+  try {
+    const docRef = db.collection('users').doc(currentUser.uid);
+    const doc = await docRef.get();
+    
+    if (doc.exists) {
+      const data = doc.data();
+      if (data.watchlist && Array.isArray(data.watchlist)) {
+        // Gabungin data lokal sama data cloud, prioritas cloud
+        const cloudMap = new Map(data.watchlist.map(item => [String(item.id), item]));
+        const merged = [...state.watchlist];
+        
+        for (let i = 0; i < merged.length; i++) {
+          if (cloudMap.has(String(merged[i].id))) {
+            merged[i] = cloudMap.get(String(merged[i].id));
+            cloudMap.delete(String(merged[i].id));
+          }
+        }
+        cloudMap.forEach(item => merged.push(item));
+        
+        state.watchlist = merged;
+        localStorage.setItem('otakuverse_watchlist', JSON.stringify(state.watchlist));
+        updateLibraryCounters();
+        renderLibrary();
+      }
+    } else {
+      // User baru, upload data lokal ke cloud
+      await docRef.set({ watchlist: state.watchlist, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+    }
+  } catch (err) {
+    console.error("Gagal sync data Firestore:", err);
   }
 }
 
@@ -383,7 +502,7 @@ function normalizeAnime(item) {
 // ==========================================================================
 async function fetchAniListDirect({ page = 1, perPage = 30, search = '', genre = '', status = '', sort = 'trending' }) {
   const query = `
-    query ($page: Int, $perPage: Int, $search: String, $genre: String, $status: MediaStatus, $sort: [MediaSort], $isAdult: Boolean) {
+    query ($page: Int, $perPage: Int, $search: String, $genre: String, $tags: [String], $status: MediaStatus, $sort: [MediaSort], $isAdult: Boolean) {
       Page(page: $page, perPage: $perPage) {
         pageInfo {
           total
@@ -392,7 +511,7 @@ async function fetchAniListDirect({ page = 1, perPage = 30, search = '', genre =
           hasNextPage
           perPage
         }
-        media(type: ANIME, isAdult: $isAdult, search: $search, genre: $genre, status: $status, sort: $sort) {
+        media(type: ANIME, isAdult: $isAdult, search: $search, genre: $genre, tag_in: $tags, status: $status, sort: $sort) {
           id
           isAdult
           title { romaji english native }
@@ -425,20 +544,67 @@ async function fetchAniListDirect({ page = 1, perPage = 30, search = '', genre =
     sort: sortMap[sort] || ['TRENDING_DESC', 'POPULARITY_DESC']
   };
 
+  const VALID_GENRES = ['Action', 'Adventure', 'Comedy', 'Drama', 'Ecchi', 'Fantasy', 'Hentai', 'Horror', 'Mahou Shoujo', 'Mecha', 'Music', 'Mystery', 'Psychological', 'Romance', 'Sci-Fi', 'Slice of Life', 'Sports', 'Supernatural', 'Thriller'];
+  
+  let mappedGenre = genre;
+  let isTag = false;
+  let multipleTags = null;
+
+  if (genre && genre !== 'All' && genre !== 'Spesial 18+') {
+    const lowerGenre = genre.toLowerCase();
+    
+    // Map common Indonesian terms to English tags/genres
+    if (lowerGenre === 'reinkarnasi' || lowerGenre === 'reincarnation') {
+      multipleTags = ['Reincarnation', 'Isekai']; // Strict Isekai Reincarnation
+      isTag = true;
+    } else if (lowerGenre === 'isekai') {
+      mappedGenre = 'Isekai';
+      isTag = true;
+    } else if (lowerGenre === 'petualangan') {
+      mappedGenre = 'Adventure';
+    } else if (lowerGenre === 'komedi') {
+      mappedGenre = 'Comedy';
+    } else if (lowerGenre === 'sihir') {
+      mappedGenre = 'Magic';
+    } else {
+      // Find case-insensitive match from Valid Genres if it exists
+      const exactGenre = VALID_GENRES.find(g => g.toLowerCase() === lowerGenre);
+      if (exactGenre) {
+        mappedGenre = exactGenre;
+      }
+    }
+
+    // If it's not in the official AniList genres and not multipleTags, treat it as a Tag!
+    if (!VALID_GENRES.includes(mappedGenre) && !multipleTags) {
+      isTag = true;
+    }
+  }
+
   if (sort === 'latest' && (!status || status === 'All')) {
     variables.status = 'RELEASING';
   }
+  
   if (genre === 'Spesial 18+') {
     variables.isAdult = true;
     variables.genre = 'Hentai';
   } else if (state.adminMode && search && search.trim()) {
     variables.isAdult = true;
     variables.search = search.trim();
-    if (genre && genre !== 'All') variables.genre = genre;
+    if (multipleTags) {
+      variables.tags = multipleTags;
+    } else if (mappedGenre && mappedGenre !== 'All') {
+      if (isTag) variables.tags = [mappedGenre];
+      else variables.genre = mappedGenre;
+    }
   } else {
     variables.isAdult = false;
     if (search && search.trim()) variables.search = search.trim();
-    if (genre && genre !== 'All') variables.genre = genre;
+    if (multipleTags) {
+      variables.tags = multipleTags;
+    } else if (mappedGenre && mappedGenre !== 'All') {
+      if (isTag) variables.tags = [mappedGenre];
+      else variables.genre = mappedGenre;
+    }
   }
 
   if (status && status !== 'All') {
@@ -530,8 +696,12 @@ async function fetchAnime(isAppend = false) {
 
     const sourcesToTry = [state.selectedSource, state.selectedSource === 'samehadaku' ? 'otakudesu' : 'samehadaku'];
 
-    // First attempt: local Node backend scraper / API
-    for (const src of sourcesToTry) {
+    // If user explicitly asks for genres, status, or specific sort (except latest), bypass scraper list and use AniList GraphQL directly
+    const isFilterActive = state.selectedGenre !== 'All' || state.selectedStatus !== 'All' || (state.selectedSort !== 'latest' && state.selectedSort !== 'trending');
+
+    // First attempt: local Node backend scraper / API (if no filters)
+    if (!isFilterActive) {
+      for (const src of sourcesToTry) {
       try {
         const params = new URLSearchParams({
           source: src,
@@ -557,9 +727,10 @@ async function fetchAnime(isAppend = false) {
       } catch (localErr) {
         console.warn(`Gagal memuat dari ${src}, mencoba sumber berikutnya...`, localErr);
       }
+      }
     }
 
-    // Fallback: direct AniList GraphQL API (100% works on GitHub Pages without server)
+    // Fallback: direct AniList GraphQL API (100% works on GitHub Pages without server, supports all filters)
     if (!data || !data.success || !Array.isArray(data.items) || data.items.length === 0) {
       data = await fetchAniListDirect({
         page: state.currentPage,
@@ -905,13 +1076,34 @@ function renderDetailEpisodes() {
     const epCard = document.createElement('div');
     epCard.className = 'ep-card-item';
     
-    const isWatched = ep.number <= lastWatchedNumber;
-    const watchedTag = isWatched ? '<span style="color: var(--accent-emerald); font-size: 0.72rem;">✓ Sudah Ditonton</span>' : '';
+    let isWatched = ep.number <= lastWatchedNumber;
+    let watchedTag = isWatched ? '<span style="color: var(--accent-emerald); font-size: 0.72rem;">✓ Sudah Ditonton</span>' : '';
+    
+    // Check progress
+    let progressHtml = '';
+    if (savedWatch && savedWatch.progress) {
+      const realIndex = episodes.findIndex(item => item.number === ep.number);
+      const prog = savedWatch.progress[realIndex];
+      if (prog && prog.pct > 0) {
+        let textProg = prog.pct >= 95 ? 'Selesai' : `${Math.floor(prog.cur / 60)}mnt / ${Math.floor(prog.dur / 60)}mnt`;
+        if (prog.pct >= 95) {
+            watchedTag = '<span style="color: var(--accent-emerald); font-size: 0.72rem;">✓ Selesai</span>';
+            isWatched = true;
+        }
+        progressHtml = `
+          <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 6px;">
+            <div style="width: ${prog.pct}%; height: 100%; background: var(--accent-gradient);"></div>
+          </div>
+          <div style="font-size: 0.7rem; color: var(--accent-blue); margin-top: 3px;">Terakhir ditonton: ${textProg}</div>
+        `;
+      }
+    }
 
     epCard.innerHTML = `
-      <div class="ep-card-left">
+      <div class="ep-card-left" style="flex: 1; padding-right: 12px;">
         <div class="ep-card-num">Episode ${ep.number} ${watchedTag}</div>
         <div class="ep-card-sub">${escapeHtml(ep.title || `Episode ${ep.number}`)} &bull; ${ep.duration || '24m'} &bull; HD Direct</div>
+        ${progressHtml}
       </div>
       <div class="ep-card-actions">
         <button type="button" class="ep-dl-btn" title="Download Episode" aria-label="Download">
@@ -1638,8 +1830,32 @@ function recordEpisodeWatch(anime, epNumber) {
   updateLibraryCounters();
 }
 
+function recordEpisodeProgress(currentTime, duration) {
+  if (!state.currentAnime || state.currentEpIndex === undefined) return;
+  let item = state.watchlist.find(w => String(w.id) === String(state.currentAnime.id));
+  if (!item) return;
+
+  if (!item.progress) item.progress = {};
+  item.progress[state.currentEpIndex] = {
+    cur: currentTime,
+    dur: duration,
+    pct: (currentTime / duration) * 100,
+    updatedAt: Date.now()
+  };
+  // We don't call saveWatchlist() here constantly to avoid high IO, we save it throttled in the event listener
+}
+
 function saveWatchlist() {
   localStorage.setItem('otakuverse_watchlist', JSON.stringify(state.watchlist));
+  
+  // Sync to Firestore
+  if (currentUser && db) {
+    db.collection('users').doc(currentUser.uid).set({
+      watchlist: state.watchlist,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true }).catch(err => console.error("Firestore sync error:", err));
+  }
+
   // Sync to backend file silently
   fetch('/api/history', {
     method: 'POST',
@@ -2126,15 +2342,32 @@ function setupEventListeners() {
     });
   });
 
-  // Genre Pills
-  DOM.genrePillsList.querySelectorAll('.genre-pill').forEach(pill => {
-    pill.addEventListener('click', () => {
+  // Genre Filter (Search Input & Semua Genre Button)
+  const btnGenreAll = document.getElementById('btnGenreAll');
+  const genreSearchInput = document.getElementById('genreSearchInput');
+
+  if (btnGenreAll) {
+    btnGenreAll.addEventListener('click', () => {
       DOM.genrePillsList.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
-      pill.classList.add('active');
-      state.selectedGenre = pill.dataset.genre;
+      btnGenreAll.classList.add('active');
+      if (genreSearchInput) genreSearchInput.value = ''; // clear search input
+      state.selectedGenre = 'All';
       fetchAnime(false);
     });
-  });
+  }
+
+  if (genreSearchInput) {
+    genreSearchInput.addEventListener('change', (e) => {
+      const val = e.target.value.trim();
+      if (val) {
+        DOM.genrePillsList.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
+        state.selectedGenre = val;
+        fetchAnime(false);
+      } else {
+        if (btnGenreAll) btnGenreAll.click();
+      }
+    });
+  }
 
   // Load More Button
   if (DOM.btnLoadMore) {
@@ -2233,6 +2466,19 @@ function setupEventListeners() {
     }
   });
 
+  DOM.mainVideoPlayer.addEventListener('loadedmetadata', () => {
+    if (state.currentAnime && state.currentEpIndex !== undefined) {
+      const item = state.watchlist.find(w => String(w.id) === String(state.currentAnime.id));
+      if (item && item.progress && item.progress[state.currentEpIndex]) {
+        const prog = item.progress[state.currentEpIndex];
+        if (prog.cur > 10 && prog.pct < 95 && DOM.mainVideoPlayer.duration > 0) {
+          DOM.mainVideoPlayer.currentTime = prog.cur;
+          showToast(`Lanjut menonton pada ${formatTime(prog.cur)}`);
+        }
+      }
+    }
+  });
+
   DOM.mainVideoPlayer.addEventListener('timeupdate', () => {
     const cur = DOM.mainVideoPlayer.currentTime || 0;
     const dur = DOM.mainVideoPlayer.duration || 0;
@@ -2244,6 +2490,12 @@ function setupEventListeners() {
       const pct = (cur / dur) * 100;
       DOM.timelineProgress.style.width = `${pct}%`;
       DOM.timelineSlider.value = pct;
+      
+      if (!state.lastProgressSave || Date.now() - state.lastProgressSave > 3000) {
+        state.lastProgressSave = Date.now();
+        recordEpisodeProgress(cur, dur);
+        saveWatchlist();
+      }
     }
 
     // Buffer bar
@@ -2891,11 +3143,30 @@ function renderHistory() {
         </p>
       </div>
     `;
+
+    // Calculate progress display if available
+    let progressHtml = '';
+    if (anime.progress) {
+      const epIndex = anime.lastEpWatched - 1;
+      const prog = anime.progress[epIndex];
+      if (prog && prog.pct > 0) {
+        let textProg = prog.pct >= 95 ? 'Selesai' : `${Math.floor(prog.cur / 60)}mnt tersisa ${Math.floor((prog.dur - prog.cur) / 60)}mnt`;
+        if (prog.pct >= 95) textProg = 'Selesai';
+        progressHtml = `
+          <div style="width: 100%; height: 4px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 8px;">
+            <div style="width: ${prog.pct}%; height: 100%; background: var(--accent-gradient);"></div>
+          </div>
+          <div style="font-size: 0.7rem; color: #94a3b8; margin-top: 4px; text-align: right;">${textProg}</div>
+        `;
+      }
+    }
+
+    card.innerHTML += progressHtml;
     
     card.addEventListener('click', () => {
       // Find matching item from current source to fetch details
       showToast('Memuat detail...');
-      const cacheKey = \`detail_\${anime.id}\`;
+      const cacheKey = `detail_${anime.id}`;
       const cached = state.cache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp < 3600000)) {
         renderHeroDetails(cached.data);
@@ -2907,7 +3178,7 @@ function renderHistory() {
         if (sourcePrefix === 'sh_') src = 'samehadaku';
         if (sourcePrefix === 'od_') src = 'otakudesu';
         if (src) {
-           fetch(\`/api/anime/\${anime.id}?source=\${src}\`)
+           fetch(`/api/anime/${anime.id}?source=${src}`)
              .then(res => res.json())
              .then(data => {
                if(data) {
