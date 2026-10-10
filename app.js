@@ -187,6 +187,7 @@ const DOM = {
   iconPause: document.getElementById('iconPause'),
   btnPrevEpisode: document.getElementById('btnPrevEpisode'),
   btnNextEpisode: document.getElementById('btnNextEpisode'),
+  playerEpSelect: document.getElementById('playerEpSelect'),
   currentTimeText: document.getElementById('currentTimeText'),
   durationTimeText: document.getElementById('durationTimeText'),
   btnMute: document.getElementById('btnMute'),
@@ -697,7 +698,7 @@ async function fetchAnime(isAppend = false) {
     let data = null;
 
     // Helper fetch with timeout for failover
-    const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+    const fetchWithTimeout = async (url, options = {}, timeoutMs = 25000) => {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -999,7 +1000,12 @@ function openAnimeDetails(anime) {
 
   // Start Watching Action
   DOM.btnDetailStartWatching.onclick = () => {
-    const saved = state.watchlist.find(w => w.id === anime.id);
+    let saved = state.watchlist.find(w => w.id === anime.id);
+    if (!saved) {
+      // Auto-add to watchlist when watching
+      toggleWatchlist(anime);
+      saved = state.watchlist.find(w => w.id === anime.id);
+    }
     const startEp = (saved && saved.lastEpWatched) ? Math.max(0, saved.lastEpWatched - 1) : 0;
     openPlayer(anime, startEp);
   };
@@ -1258,7 +1264,19 @@ async function openPlayer(anime, epIndex = 0) {
   state.currentAnime = anime;
   state.currentEpIndex = epIndex;
 
-  const episodes = anime.episodes || [];
+  let episodes = anime.episodes || [];
+  
+  if (episodes.length === 0 && anime.episodes_count) {
+    for (let i = 0; i < anime.episodes_count; i++) {
+      episodes.push({ number: i + 1, title: `Episode ${i + 1}`, url: anime.url || '' });
+    }
+  } else if (episodes.length === 0) {
+    // Fallback if episodes_count is missing (e.g., ongoing anime with unknown max episodes)
+    for (let i = 0; i <= epIndex + 10; i++) {
+       episodes.push({ number: i + 1, title: `Episode ${i + 1}`, url: anime.url || '' });
+    }
+  }
+
   const currentEp = episodes[epIndex] || {
     number: epIndex + 1,
     title: `Episode ${epIndex + 1}`,
@@ -1268,6 +1286,14 @@ async function openPlayer(anime, epIndex = 0) {
 
   DOM.playerModalTitle.textContent = anime.title;
   DOM.playerModalEp.textContent = `Episode ${currentEp.number} — ${currentEp.title || 'HD Direct Stream'}`;
+  
+  if (DOM.playerEpSelect) {
+    let epHtml = '';
+    episodes.forEach((ep, i) => {
+      epHtml += `<option value="${i}" ${i === epIndex ? 'selected' : ''}>Eps ${ep.number}</option>`;
+    });
+    DOM.playerEpSelect.innerHTML = epHtml || `<option value="0" selected>Eps ${currentEp.number}</option>`;
+  }
   
   if (anime.poster) {
     DOM.playerModalPoster.src = anime.poster;
@@ -1340,7 +1366,7 @@ async function openPlayer(anime, epIndex = 0) {
   });
 
   try {
-    const fetchWithTimeout = async (url, options = {}, timeoutMs = 8000) => {
+    const fetchWithTimeout = async (url, options = {}, timeoutMs = 25000) => {
       const controller = new AbortController();
       const id = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -1776,11 +1802,19 @@ function cycleAspectRatio() {
 
 function toggleFullscreen() {
   if (!document.fullscreenElement) {
-    DOM.videoContainer.requestFullscreen().catch(err => {
+    DOM.videoContainer.requestFullscreen().then(() => {
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(e => console.warn(e));
+      }
+    }).catch(err => {
       console.warn('Gagal fullscreen:', err);
     });
   } else {
-    document.exitFullscreen().catch(err => {
+    document.exitFullscreen().then(() => {
+      if (screen.orientation && screen.orientation.unlock) {
+        screen.orientation.unlock();
+      }
+    }).catch(err => {
       console.warn('Gagal keluar fullscreen:', err);
     });
   }
@@ -2554,6 +2588,15 @@ function setupEventListeners() {
   DOM.btnAspectRatio.addEventListener('click', cycleAspectRatio);
   DOM.btnFullscreen.addEventListener('click', toggleFullscreen);
 
+  if (DOM.playerEpSelect) {
+    DOM.playerEpSelect.addEventListener('change', (e) => {
+      const idx = parseInt(e.target.value, 10);
+      if (!isNaN(idx)) {
+        openPlayerForEpisode(idx);
+      }
+    });
+  }
+
   // Volume & Mute
   DOM.volumeSlider.addEventListener('input', (e) => {
     const val = parseFloat(e.target.value);
@@ -3297,6 +3340,13 @@ function renderProfile() {
     profileEmail.textContent = window.currentUser.email;
     profileImg.src = window.currentUser.photoURL || 'logo.jpg';
     btnLogout.style.display = 'block';
+    
+    // Auto-grant admin to logged-in users (Owner/Admin Profile)
+    if (!state.userProfile.isAdmin) {
+      state.userProfile.isAdmin = true;
+      saveUserProfile();
+      setupAdminMode();
+    }
   } else {
     profileName.textContent = 'Guest User';
     profileEmail.textContent = 'Belum Login - Progress tersimpan di perangkat';
