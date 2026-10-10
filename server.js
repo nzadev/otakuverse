@@ -393,7 +393,7 @@ const MIME_TYPES = {
   '.mp4': 'video/mp4'
 };
 
-const server = http.createServer(async (req, res) => {
+const requestHandler = async (req, res) => {
   const requestUrl = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
   const pathname = requestUrl.pathname;
 
@@ -1107,11 +1107,18 @@ const server = http.createServer(async (req, res) => {
       res.end(content);
     }
   });
-});
+};
 
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[OtakuVerse Engine v2.2] Server berjalan di http://localhost:${PORT}`);
-  console.log(`[OtakuVerse Engine v2.2] Streaming Video HTTP Range 206 Activated.`);
-});
+const server = http.createServer(requestHandler);
+
+// Vercel Serverless Export
+if (process.env.VERCEL) {
+  module.exports = requestHandler;
+} else {
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[OtakuVerse Engine v2.2] Server berjalan di http://localhost:${PORT}`);
+    console.log(`[OtakuVerse Engine v2.2] Streaming Video HTTP Range 206 Activated.`);
+  });
+}
 
 
