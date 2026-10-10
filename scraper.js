@@ -43,13 +43,27 @@ function fetchCurl(url, extraArgs = []) {
         console.warn(`[fetchCurl] curl failed for ${url}, falling back to native fetch: ${err.message}`);
         try {
           const fetchObj = typeof fetch !== 'undefined' ? fetch : (await import('node-fetch')).default;
+          
+          let method = 'GET';
+          let body = undefined;
+          let headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
+            'Referer': 'https://v2.samehadaku.how/'
+          };
+          
+          const dIndex = extraArgs.indexOf('-d');
+          if (dIndex !== -1 && extraArgs.length > dIndex + 1) {
+            method = 'POST';
+            body = extraArgs[dIndex + 1];
+            headers['Content-Type'] = 'application/x-www-form-urlencoded';
+          }
+
           const res = await fetchObj(url, {
-            headers: {
-              'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
-              'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
-              'Accept-Language': 'id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
-              'Referer': 'https://v2.samehadaku.how/'
-            }
+            method,
+            headers,
+            body
           });
           if (!res.ok) throw new Error(`Fetch failed with status ${res.status}`);
           const html = await res.text();
