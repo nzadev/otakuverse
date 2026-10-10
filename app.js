@@ -282,8 +282,12 @@ function setupNavigation() {
         renderSchedule();
         break;
       case 'library':
-        DOM.viewHeaderTitle.textContent = '📚 Koleksi Saya (Library)';
+        DOM.viewHeaderTitle.textContent = '📚 Koleksi Saya (Watchlist)';
         renderLibrary();
+        break;
+      case 'history':
+        DOM.viewHeaderTitle.textContent = '🕒 Riwayat Tontonan';
+        renderHistory();
         break;
       case 'extensions':
         DOM.viewHeaderTitle.textContent = '🧩 Ekstensi Keiyoushi';
@@ -2446,6 +2450,40 @@ async function renderSchedule() {
   const dayTabs = document.getElementById('scheduleDayTabs');
   if (!scheduleGrid || !dayTabs) return;
 
+  // Schedule Mode toggle logic
+  const btnOngoing = document.getElementById('btnScheduleOngoing');
+  const btnUpcoming = document.getElementById('btnScheduleUpcoming');
+  
+  if (btnOngoing && btnUpcoming) {
+    btnOngoing.onclick = () => {
+      state.scheduleMode = 'ongoing';
+      renderSchedule();
+    };
+    btnUpcoming.onclick = () => {
+      state.scheduleMode = 'upcoming';
+      renderSchedule();
+    };
+
+    if (state.scheduleMode === 'upcoming') {
+      btnUpcoming.classList.add('active');
+      btnUpcoming.style.background = 'var(--primary-color)';
+      btnUpcoming.style.color = '#fff';
+      btnOngoing.classList.remove('active');
+      btnOngoing.style.background = 'transparent';
+      btnOngoing.style.color = 'var(--text-dim)';
+      
+      // Render upcoming schedule
+      return renderUpcomingSchedule(scheduleGrid, dayTabs);
+    } else {
+      btnOngoing.classList.add('active');
+      btnOngoing.style.background = 'var(--primary-color)';
+      btnOngoing.style.color = '#fff';
+      btnUpcoming.classList.remove('active');
+      btnUpcoming.style.background = 'transparent';
+      btnUpcoming.style.color = 'var(--text-dim)';
+    }
+  }
+
   if (!state.scheduleData) {
     scheduleGrid.innerHTML = `
       <div class="empty-state">
@@ -2552,8 +2590,83 @@ async function renderSchedule() {
 }
 
 // ==========================================================================
-// MANGA FEATURES
+async function renderUpcomingSchedule(scheduleGrid, dayTabs) {
+  dayTabs.innerHTML = ''; // Hide day tabs for upcoming
+
+  if (!state.upcomingData) {
+    scheduleGrid.innerHTML = `
+      <div class="empty-state">
+        <div style="font-size: 3rem; margin-bottom: 15px;">⏳</div>
+        <div>Memuat jadwal masa depan...</div>
+      </div>
+    `;
+    
+    try {
+      const res = await fetch('/api/schedule/upcoming');
+      const data = await res.json();
+      if (data.success) {
+        state.upcomingData = data.data;
+      } else {
+        throw new Error(data.error);
+      }
+    } catch (e) {
+      scheduleGrid.innerHTML = `
+        <div class="empty-state">
+          <div style="font-size: 3rem; margin-bottom: 15px;">⚠️</div>
+          <div>Gagal memuat jadwal masa depan.</div>
+        </div>
+      `;
+      return;
+    }
+  }
+
+  scheduleGrid.innerHTML = '';
+  if (state.upcomingData.length === 0) {
+    scheduleGrid.innerHTML = `
+      <div class="empty-state" style="grid-column: 1/-1;">
+        <div style="font-size: 3rem; margin-bottom: 15px;">🚀</div>
+        <div>Belum ada info tayangan masa depan.</div>
+      </div>
+    `;
+    return;
+  }
+
+  state.upcomingData.forEach(anime => {
+    const card = document.createElement('div');
+    card.className = 'anime-card';
+    
+    if (state.watchlist.some(w => w.id === anime.id)) {
+      card.classList.add('in-library');
+    }
+
+    const year = anime.seasonYear || 'TBA';
+    const season = anime.season ? anime.season.charAt(0) + anime.season.slice(1).toLowerCase() : '';
+
+    let statusHtml = `
+      <div class="card-status status-upcoming">
+        🚀 Coming Soon
+      </div>
+    `;
+
+    card.innerHTML = `
+      <div class="card-cover-wrap">
+        <img class="card-cover" src="${anime.cover}" alt="Cover" loading="lazy">
+        ${statusHtml}
+        <div class="card-ext-badge">${season} ${year}</div>
+      </div>
+      <div class="card-info">
+        <h3 class="card-title">${anime.title}</h3>
+        <p class="card-type">${anime.genre && anime.genre[0] ? anime.genre[0] : 'TBA'}</p>
+      </div>
+    `;
+
+    card.addEventListener('click', () => openAnimeDetails(anime));
+    scheduleGrid.appendChild(card);
+  });
+}
+
 // ==========================================================================
+// MANGA FEATURES
 
 async function fetchMangaLatest() {
   try {
@@ -2729,3 +2842,87 @@ setTimeout(() => {
         });
     }
 }, 2000);
+
+// ==========================================================================
+// HISTORY MANAGEMENT
+// ==========================================================================
+function renderHistory() {
+  const historyGrid = document.getElementById('historyGrid');
+  if (!historyGrid) return;
+
+  historyGrid.innerHTML = '';
+  
+  // Filter history (only items with lastWatchedAt) and sort descending
+  const historyItems = state.watchlist
+    .filter(item => item.lastWatchedAt)
+    .sort((a, b) => b.lastWatchedAt - a.lastWatchedAt);
+    
+  if (historyItems.length === 0) {
+    historyGrid.innerHTML = `
+      <div class="empty-state" style="grid-column: 1 / -1; text-align: center; padding: 40px;">
+        <span style="font-size: 3rem; display: block; margin-bottom: 10px;">🕒</span>
+        <h3>Belum Ada Riwayat</h3>
+        <p style="color: #aaa;">Anda belum menonton apapun.</p>
+      </div>`;
+    return;
+  }
+  
+  historyItems.forEach(anime => {
+    const card = document.createElement('div');
+    card.className = 'anime-card';
+    card.innerHTML = `
+      <div class="card-image-wrap">
+        <img src="${anime.poster}" alt="${anime.title}" class="card-image" loading="lazy">
+        <div class="card-badges">
+          <span class="badge score-badge">⭐ ${anime.score || 'N/A'}</span>
+          <span class="badge status-badge">${anime.status}</span>
+        </div>
+        <div class="card-hover-play">
+          <svg viewBox="0 0 24 24" width="40" height="40" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"></polygon>
+          </svg>
+        </div>
+      </div>
+      <div class="card-content">
+        <h3 class="card-title">${anime.title}</h3>
+        <p class="card-subtitle">Eps ${anime.lastEpWatched} / ${anime.totalEps || '?'}</p>
+        <p class="card-subtitle" style="font-size: 0.75rem; margin-top: 5px; color: #888;">
+          Terakhir ditonton: ${new Date(anime.lastWatchedAt).toLocaleDateString('id-ID', {day: 'numeric', month: 'short', year: 'numeric'})}
+        </p>
+      </div>
+    `;
+    
+    card.addEventListener('click', () => {
+      // Find matching item from current source to fetch details
+      showToast('Memuat detail...');
+      const cacheKey = \`detail_\${anime.id}\`;
+      const cached = state.cache.get(cacheKey);
+      if (cached && (Date.now() - cached.timestamp < 3600000)) {
+        renderHeroDetails(cached.data);
+      } else {
+        renderHeroDetails(anime); // Render mock first
+        // Try fetching actual details if it's from a known source
+        const sourcePrefix = String(anime.id).substring(0, 3);
+        let src = '';
+        if (sourcePrefix === 'sh_') src = 'samehadaku';
+        if (sourcePrefix === 'od_') src = 'otakudesu';
+        if (src) {
+           fetch(\`/api/anime/\${anime.id}?source=\${src}\`)
+             .then(res => res.json())
+             .then(data => {
+               if(data) {
+                 state.cache.set(cacheKey, { timestamp: Date.now(), data });
+                 renderHeroDetails(data);
+               }
+             })
+             .catch(err => console.error(err));
+        }
+      }
+      
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+    
+    historyGrid.appendChild(card);
+  });
+}
+
