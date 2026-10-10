@@ -1540,9 +1540,17 @@ function loadIframeStream(embedUrl, label = 'Stream Iframe') {
   }
 
   let targetUrl = embedUrl;
-  if (targetUrl.includes('watch?v=')) {
-    targetUrl = targetUrl.replace('watch?v=', 'embed/') + '?autoplay=1';
+  if (targetUrl.includes('youtube.com/watch?v=')) {
+    targetUrl = targetUrl.replace('watch?v=', 'embed/');
+  } else if (targetUrl.includes('youtu.be/')) {
+    targetUrl = targetUrl.replace('youtu.be/', 'youtube.com/embed/');
   }
+  
+  if (targetUrl.includes('youtube.com/embed/')) {
+    const separator = targetUrl.includes('?') ? '&' : '?';
+    targetUrl += `${separator}autoplay=1&playsinline=1&modestbranding=1&rel=0&fs=1`;
+  }
+  
   DOM.trailerPlayerIframe.src = targetUrl;
   showToast(`🎬 Memuat ${label}`);
 }
