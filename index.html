@@ -138,6 +138,14 @@
           <span class="sidebar-status-dot online" title="Repo Keiyoushi Aktif"></span>
         </button>
 
+        <button type="button" class="nav-item" data-tab="profile">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+            <circle cx="12" cy="7" r="4"></circle>
+          </svg>
+          <span class="nav-label">Profil & Pangkat</span>
+        </button>
+
         <button type="button" class="nav-item" data-tab="settings">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
             <circle cx="12" cy="12" r="3"></circle>
@@ -230,6 +238,14 @@
         <span>Ekstensi</span>
       </button>
 
+      <button type="button" class="bottom-nav-item" data-tab="profile">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+          <circle cx="12" cy="7" r="4"></circle>
+        </svg>
+        <span>Profil</span>
+      </button>
+
       <button type="button" class="bottom-nav-item" data-tab="settings">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
           <circle cx="12" cy="12" r="3"></circle>
@@ -263,7 +279,6 @@
               <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
             </svg>
             <input type="text" id="globalSearchInput" placeholder="Cari judul anime, studio, genre..." autocomplete="off">
-            <kbd class="search-kbd">Ctrl K</kbd>
           </div>
         </div>
 
@@ -515,6 +530,46 @@
       </section>
 
       <!-- TAB 4: SETTINGS (ANIYOMI PREFERENCES) -->
+      <!-- TAB: PROFILE / GAMIFICATION -->
+      <section class="tab-view" id="viewProfile">
+        <div class="content-padding">
+          <div style="background: var(--bg-card); border: 1px solid var(--border-subtle); border-radius: var(--radius-lg); padding: 30px; margin-bottom: 20px; display: flex; flex-direction: column; align-items: center; text-align: center; gap: 15px;">
+            <div style="position: relative; width: 100px; height: 100px; border-radius: 50%; background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue)); display: flex; align-items: center; justify-content: center; font-size: 40px; border: 4px solid var(--bg-card); box-shadow: 0 4px 20px rgba(0, 240, 255, 0.3);">
+              <img id="profileUserImage" src="logo.jpg" alt="Profile" style="width: 100%; height: 100%; border-radius: 50%; object-fit: cover;">
+              <div id="profileLevelBadge" style="position: absolute; bottom: -5px; right: -5px; background: var(--bg-dark); color: var(--accent-cyan); font-weight: bold; border: 2px solid var(--accent-cyan); border-radius: 50%; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; font-size: 14px;">1</div>
+            </div>
+            
+            <div>
+              <h2 id="profileUserName" style="margin: 0 0 5px 0; font-size: 1.5rem;">Guest User</h2>
+              <p id="profileUserEmail" style="margin: 0; color: var(--text-muted); font-size: 0.9rem;">Belum Login</p>
+            </div>
+            
+            <div style="width: 100%; max-width: 400px; text-align: left;">
+              <div style="display: flex; justify-content: space-between; margin-bottom: 5px; font-size: 0.85rem;">
+                <span id="profileRankName" style="color: var(--accent-cyan); font-weight: 600;">Bronze I</span>
+                <span id="profileXpText">0 / 100 XP</span>
+              </div>
+              <div style="width: 100%; height: 8px; background: var(--bg-dark); border-radius: 4px; overflow: hidden;">
+                <div id="profileXpBar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--accent-cyan), var(--accent-blue)); border-radius: 4px; transition: width 0.5s ease;"></div>
+              </div>
+            </div>
+            
+            <div style="display: flex; gap: 20px; width: 100%; max-width: 400px; margin-top: 10px;">
+              <div style="flex: 1; background: var(--bg-dark); padding: 15px; border-radius: var(--radius-md); text-align: center;">
+                <div id="profileTotalEpisodes" style="font-size: 1.5rem; font-weight: 700; color: var(--text-main);">0</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Ep Ditonton</div>
+              </div>
+              <div style="flex: 1; background: var(--bg-dark); padding: 15px; border-radius: var(--radius-md); text-align: center;">
+                <div id="profileWatchTime" style="font-size: 1.5rem; font-weight: 700; color: var(--text-main);">0j</div>
+                <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;">Waktu Tonton</div>
+              </div>
+            </div>
+            
+            <button id="profileBtnLogout" class="cta-btn secondary-cta" style="margin-top: 15px; padding: 10px 30px; width: auto; max-width: 200px;">Logout</button>
+          </div>
+        </div>
+      </section>
+
       <section class="tab-view" id="viewSettings">
         <div class="settings-header">
           <h2 class="section-title">⚙️ Pengaturan &amp; Preferensi</h2>
@@ -879,14 +934,6 @@
 
           <!-- Center Touch Actions & Big Play Button -->
           <div class="hud-center-area">
-            <button type="button" class="hud-step-btn" id="btnRewind10" title="Mundur 10 Detik (J / ←)">
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M1 4v6h6"></path>
-                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"></path>
-              </svg>
-              <span class="step-num">10</span>
-            </button>
-
             <div style="position: relative; display: flex; justify-content: center; align-items: center;">
               <button type="button" class="center-play-button" id="centerPlayButton" title="Play/Pause (Space)">
                 <svg id="centerPlayIcon" viewBox="0 0 24 24" width="46" height="46" fill="currentColor">
@@ -899,14 +946,6 @@
                 </svg>
               </div>
             </div>
-
-            <button type="button" class="hud-step-btn" id="btnForward10" title="Maju 10 Detik (L / →)">
-              <svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M23 4v6h-6"></path>
-                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
-              </svg>
-              <span class="step-num">10</span>
-            </button>
           </div>
 
           <!-- Floating Skip Intro Chip (Aniyomi signature!) -->
@@ -928,6 +967,14 @@
             <!-- Bottom Controls Row -->
             <div class="hud-controls-row">
               <div class="hud-controls-left">
+                <!-- Prev Episode Button -->
+                <button type="button" class="hud-btn" id="btnPrevEpisode" title="Episode Sebelumnya" style="opacity: 0.5; pointer-events: none;">
+                  <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                    <polygon points="19 4 9 12 19 20 19 4"></polygon>
+                    <line x1="5" y1="5" x2="5" y2="19" stroke="currentColor" stroke-width="2"></line>
+                  </svg>
+                </button>
+
                 <!-- Play/Pause -->
                 <button type="button" class="hud-btn" id="btnPlayPause" title="Play/Pause (Space)">
                   <svg id="iconPlay" viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
@@ -939,7 +986,7 @@
                   </svg>
                 </button>
 
-                <!-- Next Episode Button (Aniyomi feature) -->
+                <!-- Next Episode Button -->
                 <button type="button" class="hud-btn" id="btnNextEpisode" title="Episode Selanjutnya">
                   <svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
                     <polygon points="5 4 15 12 5 20 5 4"></polygon>

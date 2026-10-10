@@ -57,7 +57,9 @@ const state = {
     defaultQuality: localStorage.getItem('otakuverse_quality') || '720',
     autoNext: localStorage.getItem('otakuverse_autonext') !== 'false',
     autoFallback: localStorage.getItem('otakuverse_autofallback') !== 'false'
-  }
+  },
+  
+  userProfile: JSON.parse(localStorage.getItem('otakuverse_user_profile') || '{"xp":0,"level":1,"watchTimeMinutes":0,"episodesWatched":0}')
 };
 
 // ==========================================================================
@@ -173,8 +175,6 @@ const DOM = {
   qualitySelect: document.getElementById('qualitySelect'),
   btnQuickFallbackServer: document.getElementById('btnQuickFallbackServer'),
   btnDownloadStream: document.getElementById('btnDownloadStream'),
-  btnRewind10: document.getElementById('btnRewind10'),
-  btnForward10: document.getElementById('btnForward10'),
   centerPlayButton: document.getElementById('centerPlayButton'),
   centerPlayIcon: document.getElementById('centerPlayIcon'),
   btnSkipIntro: document.getElementById('btnSkipIntro'),
@@ -185,6 +185,7 @@ const DOM = {
   btnPlayPause: document.getElementById('btnPlayPause'),
   iconPlay: document.getElementById('iconPlay'),
   iconPause: document.getElementById('iconPause'),
+  btnPrevEpisode: document.getElementById('btnPrevEpisode'),
   btnNextEpisode: document.getElementById('btnNextEpisode'),
   currentTimeText: document.getElementById('currentTimeText'),
   durationTimeText: document.getElementById('durationTimeText'),
@@ -351,9 +352,20 @@ async function syncDataFromFirestore() {
         updateLibraryCounters();
         renderLibrary();
       }
+      if (data.userProfile) {
+        // Gabungin data lokal sama data cloud untuk profile
+        if (data.userProfile.xp > state.userProfile.xp) {
+          state.userProfile = data.userProfile;
+          localStorage.setItem('otakuverse_user_profile', JSON.stringify(state.userProfile));
+        }
+      }
     } else {
       // User baru, upload data lokal ke cloud
-      await docRef.set({ watchlist: state.watchlist, updatedAt: firebase.firestore.FieldValue.serverTimestamp() });
+      await docRef.set({ 
+        watchlist: state.watchlist, 
+        userProfile: state.userProfile,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp() 
+      });
     }
   } catch (err) {
     console.error("Gagal sync data Firestore:", err);
@@ -411,6 +423,10 @@ function setupNavigation() {
       case 'extensions':
         DOM.viewHeaderTitle.textContent = '🧩 Ekstensi Keiyoushi';
         renderExtensions();
+        break;
+      case 'profile':
+        DOM.viewHeaderTitle.textContent = '🏅 Profil & Pangkat';
+        renderProfile();
         break;
       case 'settings':
         DOM.viewHeaderTitle.textContent = '⚙️ Pengaturan & Preferensi';
@@ -1283,13 +1299,21 @@ async function openPlayer(anime, epIndex = 0) {
   // Update Skip Intro Chip Text with configured seconds
   DOM.btnSkipIntro.querySelector('span').textContent = `⏩ Lewati Intro (+${state.settings.skipIntroTime}s)`;
 
-  // Update Next Episode Button Visibility
+  // Update Next/Prev Episode Button Visibility
   if (epIndex >= episodes.length - 1) {
     DOM.btnNextEpisode.style.opacity = '0.4';
-    DOM.btnNextEpisode.disabled = true;
+    DOM.btnNextEpisode.style.pointerEvents = 'none';
   } else {
     DOM.btnNextEpisode.style.opacity = '1';
-    DOM.btnNextEpisode.disabled = false;
+    DOM.btnNextEpisode.style.pointerEvents = 'auto';
+  }
+  
+  if (epIndex <= 0) {
+    DOM.btnPrevEpisode.style.opacity = '0.4';
+    DOM.btnPrevEpisode.style.pointerEvents = 'none';
+  } else {
+    DOM.btnPrevEpisode.style.opacity = '1';
+    DOM.btnPrevEpisode.style.pointerEvents = 'auto';
   }
 
   // Record Watch History
@@ -1849,8 +1873,8 @@ function saveWatchlist() {
   localStorage.setItem('otakuverse_watchlist', JSON.stringify(state.watchlist));
   
   // Sync to Firestore
-  if (currentUser && db) {
-    db.collection('users').doc(currentUser.uid).set({
+  if (window.currentUser && window.db) {
+    window.db.collection('users').doc(window.currentUser.uid).set({
       watchlist: state.watchlist,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     }, { merge: true }).catch(err => console.error("Firestore sync error:", err));
@@ -2460,6 +2484,12 @@ function setupEventListeners() {
   });
   DOM.mainVideoPlayer.addEventListener('ended', () => {
     updatePlayIcons(false);
+    
+    // Add gamification rewards
+    state.userProfile.episodesWatched = (state.userProfile.episodesWatched || 0) + 1;
+    addXP(100); // Bonus XP for finishing
+    if (state.activeTab === 'profile') renderProfile();
+    
     if (state.settings.autoNext) {
       showToast('⏭️ Episode selesai, memutar episode berikutnya...');
       setTimeout(() => playNextEpisode(), 1500);
@@ -2471,12 +2501,40 @@ function setupEventListeners() {
       const item = state.watchlist.find(w => String(w.id) === String(state.currentAnime.id));
       if (item && item.progress && item.progress[state.currentEpIndex]) {
         const prog = item.progress[state.currentEpIndex];
-        if (prog.cur > 10 && prog.pct < 95 && DOM.mainVideoPlayer.duration > 0) {
+        if (prog.pct >= 95) {
+          // Rewatch prompt
+          if(confirm("Kamu sudah menonton episode ini sampai habis. Mau nonton ulang (Rewatch)?\n\nKlik OK untuk nonton ulang, Cancel untuk biarkan/lanjut episode berikutnya.")) {
+            DOM.mainVideoPlayer.currentTime = 0;
+            showToast("Memulai ulang episode!");
+          } else {
+            // Check if there is next episode
+            const episodes = state.currentAnime.episodes || state.currentAnime.episode_list;
+            if (state.currentEpIndex < episodes.length - 1) {
+              playNextEpisode();
+            }
+          }
+        } else if (prog.cur > 10 && DOM.mainVideoPlayer.duration > 0) {
           DOM.mainVideoPlayer.currentTime = prog.cur;
           showToast(`Lanjut menonton pada ${formatTime(prog.cur)}`);
         }
       }
     }
+  });
+
+  DOM.mainVideoPlayer.addEventListener('waiting', () => {
+    DOM.videoContainer.classList.add('is-buffering');
+    const playIcon = document.getElementById('centerPlayIcon');
+    const spinner = document.getElementById('videoSpinner');
+    if(playIcon) playIcon.style.opacity = '0';
+    if(spinner) spinner.classList.remove('hidden');
+  });
+
+  DOM.mainVideoPlayer.addEventListener('playing', () => {
+    DOM.videoContainer.classList.remove('is-buffering');
+    const playIcon = document.getElementById('centerPlayIcon');
+    const spinner = document.getElementById('videoSpinner');
+    if(playIcon) playIcon.style.opacity = '1';
+    if(spinner) spinner.classList.add('hidden');
   });
 
   DOM.mainVideoPlayer.addEventListener('timeupdate', () => {
@@ -2517,9 +2575,12 @@ function setupEventListeners() {
   // Player Buttons
   DOM.btnPlayPause.addEventListener('click', togglePlayPause);
   DOM.centerPlayButton.addEventListener('click', togglePlayPause);
-  DOM.btnRewind10.addEventListener('click', () => skipVideoTime(-10));
-  DOM.btnForward10.addEventListener('click', () => skipVideoTime(10));
   DOM.btnSkipIntro.addEventListener('click', skipIntro);
+  DOM.btnPrevEpisode.addEventListener('click', () => {
+    if(state.currentEpIndex !== undefined && state.currentEpIndex > 0) {
+      openPlayerForEpisode(state.currentEpIndex - 1);
+    }
+  });
   DOM.btnNextEpisode.addEventListener('click', playNextEpisode);
   DOM.btnPlaybackSpeed.addEventListener('click', cyclePlaybackSpeed);
   DOM.btnAspectRatio.addEventListener('click', cycleAspectRatio);
@@ -3197,3 +3258,121 @@ function renderHistory() {
   });
 }
 
+// ==========================================================================
+// GAMIFICATION & PROFILE SYSTEM
+// ==========================================================================
+function saveUserProfile() {
+  localStorage.setItem('otakuverse_user_profile', JSON.stringify(state.userProfile));
+  
+  if (window.currentUser && window.db) {
+    window.db.collection('users').doc(window.currentUser.uid).set({
+      userProfile: state.userProfile,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true }).catch(err => console.error("Firestore sync error:", err));
+  }
+}
+
+function getRankName(level) {
+  if (level < 5) return 'Bronze I';
+  if (level < 10) return 'Bronze II';
+  if (level < 15) return 'Silver I';
+  if (level < 20) return 'Silver II';
+  if (level < 30) return 'Gold I';
+  if (level < 40) return 'Gold II';
+  if (level < 50) return 'Platinum';
+  if (level < 75) return 'Diamond';
+  if (level < 100) return 'Master';
+  return 'Grandmaster';
+}
+
+function getXpForNextLevel(level) {
+  return 100 + (level * 50);
+}
+
+function addXP(amount) {
+  state.userProfile.xp += amount;
+  let nextLevelXp = getXpForNextLevel(state.userProfile.level);
+  
+  let leveledUp = false;
+  while (state.userProfile.xp >= nextLevelXp) {
+    state.userProfile.xp -= nextLevelXp;
+    state.userProfile.level += 1;
+    nextLevelXp = getXpForNextLevel(state.userProfile.level);
+    leveledUp = true;
+  }
+  
+  saveUserProfile();
+  
+  if (leveledUp) {
+    showToast(`🎉 Level Up! Kamu sekarang Level ${state.userProfile.level} (${getRankName(state.userProfile.level)})`);
+    if (state.activeTab === 'profile') renderProfile();
+  }
+}
+
+function renderProfile() {
+  const profileName = document.getElementById('profileUserName');
+  const profileEmail = document.getElementById('profileUserEmail');
+  const profileImg = document.getElementById('profileUserImage');
+  const levelBadge = document.getElementById('profileLevelBadge');
+  const rankName = document.getElementById('profileRankName');
+  const xpText = document.getElementById('profileXpText');
+  const xpBar = document.getElementById('profileXpBar');
+  const totalEp = document.getElementById('profileTotalEpisodes');
+  const watchTime = document.getElementById('profileWatchTime');
+  const btnLogout = document.getElementById('profileBtnLogout');
+  
+  if (!profileName) return;
+
+  // Set user info
+  if (window.currentUser) {
+    profileName.textContent = window.currentUser.displayName || 'Otaku User';
+    profileEmail.textContent = window.currentUser.email;
+    profileImg.src = window.currentUser.photoURL || 'logo.jpg';
+    btnLogout.style.display = 'block';
+  } else {
+    profileName.textContent = 'Guest User';
+    profileEmail.textContent = 'Belum Login - Progress tersimpan di perangkat';
+    profileImg.src = 'logo.jpg';
+    btnLogout.style.display = 'none';
+  }
+  
+  // Set gamification data
+  const { xp, level, watchTimeMinutes, episodesWatched } = state.userProfile;
+  const nextXp = getXpForNextLevel(level);
+  const xpPct = (xp / nextXp) * 100;
+  
+  levelBadge.textContent = level;
+  rankName.textContent = getRankName(level);
+  xpText.textContent = `${Math.floor(xp)} / ${nextXp} XP`;
+  xpBar.style.width = `${xpPct}%`;
+  totalEp.textContent = episodesWatched;
+  
+  if (watchTimeMinutes < 60) {
+    watchTime.textContent = `${Math.floor(watchTimeMinutes)}m`;
+  } else {
+    const hours = Math.floor(watchTimeMinutes / 60);
+    const mins = Math.floor(watchTimeMinutes % 60);
+    watchTime.textContent = `${hours}j ${mins}m`;
+  }
+  
+  if (btnLogout && !btnLogout.hasEventListener) {
+    btnLogout.hasEventListener = true;
+    btnLogout.addEventListener('click', () => {
+      if (window.auth) {
+        window.auth.signOut().then(() => {
+          window.location.reload();
+        });
+      }
+    });
+  }
+}
+
+// Hook up XP earning
+setInterval(() => {
+  if (DOM.mainVideoPlayer && !DOM.mainVideoPlayer.paused && !DOM.mainVideoPlayer.ended && state.currentAnime) {
+    // Add 1 min watch time and 10 XP every 1 min
+    state.userProfile.watchTimeMinutes = (state.userProfile.watchTimeMinutes || 0) + 1;
+    addXP(10);
+    if (state.activeTab === 'profile') renderProfile();
+  }
+}, 60000);
