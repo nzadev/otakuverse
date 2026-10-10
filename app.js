@@ -211,16 +211,22 @@ const DOM = {
 // PWA Install Prompt State
 let deferredPrompt;
 
-document.addEventListener('DOMContentLoaded', () => {
+
+function bootApp() {
   init();
   initPWA();
-  
-  // Force remove splash screen after animation to ensure it doesn't block clicks
   setTimeout(() => {
     const splash = document.getElementById('splashScreen');
     if (splash) splash.remove();
   }, 2500);
-});
+}
+
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', bootApp);
+} else {
+  bootApp();
+}
+
 
 function initPWA() {
   if ('serviceWorker' in navigator) {
@@ -3590,4 +3596,8 @@ function initAppOnlyFeatures() {
     }
   }
 }
-document.addEventListener('DOMContentLoaded', initAppOnlyFeatures);
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', initAppOnlyFeatures);
+} else {
+  initAppOnlyFeatures();
+}
