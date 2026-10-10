@@ -961,7 +961,7 @@ function updateHeroSpotlight() {
   DOM.heroRepoTag.textContent = '✨ Server HD Online';
 
   DOM.btnHeroPlay.onclick = () => {
-    openPlayer(featured, 0);
+    openAnimeDetails(featured);
   };
 
   DOM.btnHeroDetail.onclick = () => {
@@ -3355,9 +3355,9 @@ function renderHistory() {
       const cacheKey = `detail_${anime.id}`;
       const cached = state.cache.get(cacheKey);
       if (cached && (Date.now() - cached.timestamp < 3600000)) {
-        renderHeroDetails(cached.data);
+        openAnimeDetails(cached.data);
       } else {
-        renderHeroDetails(anime); // Render mock first
+        openAnimeDetails(anime); // Render mock first
         // Try fetching actual details if it's from a known source
         const sourcePrefix = String(anime.id).substring(0, 3);
         let src = '';
@@ -3369,7 +3369,7 @@ function renderHistory() {
              .then(data => {
                if(data) {
                  state.cache.set(cacheKey, { timestamp: Date.now(), data });
-                 renderHeroDetails(data);
+                 openAnimeDetails(data);
                }
              })
              .catch(err => console.error(err));
