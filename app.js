@@ -78,6 +78,9 @@ const DOM = {
   // Search & Source
   globalSearchInput: document.getElementById('globalSearchInput'),
   sourceSelectDropdown: document.getElementById('sourceSelectDropdown'),
+  repoSelectorContainer: document.getElementById('repoSelectorContainer'),
+  navAdminMode: document.getElementById('navAdminMode'),
+  tabAdmin: document.getElementById('tab-admin'),
 
   // Catalog Tab
   heroSpotlight: document.getElementById('heroSpotlight'),
@@ -211,6 +214,12 @@ let deferredPrompt;
 document.addEventListener('DOMContentLoaded', () => {
   init();
   initPWA();
+  
+  // Force remove splash screen after animation to ensure it doesn't block clicks
+  setTimeout(() => {
+    const splash = document.getElementById('splashScreen');
+    if (splash) splash.remove();
+  }, 2500);
 });
 
 function initPWA() {
@@ -260,6 +269,7 @@ async function init() {
 
   try {
     await fetchExtensions();
+    fetchCarousels(); // Run in parallel
     await fetchAnime(false);
   } catch (err) {
     console.error('Inisialisasi aplikasi gagal:', err);
@@ -286,7 +296,8 @@ function setupFirebaseAuth() {
         currentUser = null;
         if (authBtnText) authBtnText.innerText = "Login Google";
         if (loginOverlay && localStorage.getItem('otakuverse_guest') !== 'true') {
-          loginOverlay.classList.remove('hidden');
+          // Disable forced login overlay because Firebase blocks random trycloudflare domains
+          // loginOverlay.classList.remove('hidden');
         }
       }
     });
@@ -311,7 +322,7 @@ function setupFirebaseAuth() {
     if (btnOverlayGoogle) {
       btnOverlayGoogle.addEventListener('click', () => {
         const provider = new firebase.auth.GoogleAuthProvider();
-        auth.signInWithPopup(provider).catch((error) => {
+        auth.signInWithRedirect(provider).catch((error) => {
           console.error(error);
           showToast("Gagal login: " + error.message, "error");
         });
@@ -431,6 +442,9 @@ function setupNavigation() {
         break;
       case 'settings':
         DOM.viewHeaderTitle.textContent = '⚙️ Pengaturan & Preferensi';
+        break;
+      case 'admin':
+        DOM.viewHeaderTitle.textContent = '🔞 Admin Vault';
         break;
     }
 
@@ -673,8 +687,16 @@ async function fetchAniListDirect({ page = 1, perPage = 30, search = '', genre =
 }
 
 // ==========================================================================
-// FETCH & RENDER ANIME CATALOG (TAB 1)
 // ==========================================================================
+// FETCH & RENDER CATALOG (TAB 1)
+// ==========================================================================
+async function fetchMedia(isAppend = false) {
+  if (state.currentMediaType === 'manga') return fetchMangaLatest(isAppend);
+  if (state.currentMediaType === 'ln') return fetchLNLatest(isAppend);
+  if (state.currentMediaType === 'wn') return fetchWNLatest(isAppend);
+  return fetchAnime(isAppend);
+}
+
 async function fetchAnime(isAppend = false) {
   if (state.isLoading) return;
   state.isLoading = true;
@@ -856,8 +878,16 @@ function renderAnimeGrid(isAppend = false) {
     // Fix Ongoing vs Tamat detection & episode badge text
     const statusRaw = String(anime.status || '').toLowerCase();
     const isOngoing = statusRaw.includes('ongoing') || statusRaw.includes('releasing') || statusRaw.includes('airing') || (anime.episode_number && anime.episode_number > 0);
+    const isHiatus = statusRaw.includes('hiatus');
+    const isCancelled = statusRaw.includes('cancelled');
     const epNum = anime.episode_number || (Array.isArray(anime.episodes) && anime.episodes[0] && anime.episodes[0].number) || totalEps;
-    const epBadgeText = isOngoing ? `Ongoing • Ep ${epNum}` : `Tamat • ${totalEps} Ep`;
+    let epBadgeText = `Tamat • ${totalEps} Ep`;
+    if (isOngoing) epBadgeText = `Ongoing • Ep ${epNum}`;
+    if (isHiatus) epBadgeText = `Hiatus`;
+    if (isCancelled) epBadgeText = `Cancelled`;
+    
+    let epBadgeClass = isOngoing ? 'chip-ongoing' : 'chip-completed';
+    if (isHiatus || isCancelled) epBadgeClass = 'chip-hiatus';
 
     card.innerHTML = `
       <div class="card-poster-wrap">
@@ -870,7 +900,7 @@ function renderAnimeGrid(isAppend = false) {
              onerror="if(!this.dataset.proxied && this.dataset.rawSrc){this.dataset.proxied='1';this.src='/api/image-proxy?url='+encodeURIComponent(this.dataset.rawSrc);}else{this.src='https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600&auto=format&fit=crop&q=80';}">
         <div class="card-top-badges">
           <span class="score-chip">${scoreVal}</span>
-          <span class="ep-chip ${isOngoing ? 'chip-ongoing' : 'chip-completed'}">${epBadgeText}</span>
+          <span class="ep-chip ${epBadgeClass}">${epBadgeText}</span>
         </div>
       </div>
       <div class="card-body">
@@ -1392,7 +1422,7 @@ async function openPlayer(anime, epIndex = 0) {
       }
       
       try {
-        const res = await fetchWithTimeout(`/api/scrapers/streams?${queryParams.toString()}`, {}, 8000);
+        const res = await fetchWithTimeout(`/api/scrapers/streams?${queryParams.toString()}`, {}, 35000);
         const jsonData = await res.json();
         if (jsonData.success && Array.isArray(jsonData.streams) && jsonData.streams.length > 0) {
           data = jsonData;
@@ -2184,32 +2214,10 @@ function setupAdminMode() {
   const getAdminPin = () => localStorage.getItem('otakuverse_admin_pin') || '6969';
 
   const updateAdminUI = () => {
-    state.adminMode = state.userProfile && state.userProfile.isAdmin === true;
-    
     // Hide/show extensions tab dynamically based on admin mode
     document.querySelectorAll('.admin-only-tab').forEach(tab => {
       tab.style.display = state.adminMode ? 'flex' : 'none';
     });
-
-    if (DOM.adminStatusPill) {
-      if (state.adminMode) {
-        DOM.adminStatusPill.textContent = 'Terbuka 🔓';
-        DOM.adminStatusPill.style.background = 'rgba(139, 92, 246, 0.25)';
-        DOM.adminStatusPill.style.color = '#c084fc';
-        DOM.adminStatusPill.style.borderColor = '#8b5cf6';
-      } else {
-        DOM.adminStatusPill.textContent = 'Terkunci 🔒';
-        DOM.adminStatusPill.style.background = 'rgba(255, 255, 255, 0.05)';
-        DOM.adminStatusPill.style.color = 'var(--text-muted)';
-        DOM.adminStatusPill.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-      }
-    }
-    if (DOM.btnToggleAdminText) {
-      DOM.btnToggleAdminText.textContent = state.adminMode ? '🔒 Kunci Akses Kembali' : '🔑 Buka Kunci Akses';
-    }
-    if (DOM.adminControlsArea) {
-      DOM.adminControlsArea.classList.toggle('hidden', !state.adminMode);
-    }
 
     // Header Vault Badge (Discreet & Aesthetic)
     let vipBadge = document.getElementById('headerAdminBadge');
@@ -2224,106 +2232,116 @@ function setupAdminMode() {
     } else {
       if (vipBadge) vipBadge.remove();
     }
+  };
 
-    // Inject / remove Admin Special Pill in Catalog
-    let adminPill = document.querySelector('.genre-pill.admin-genre-pill');
-    if (state.adminMode) {
-      if (!adminPill && DOM.genrePillsList) {
-        adminPill = document.createElement('button');
-        adminPill.type = 'button';
-        adminPill.className = 'genre-pill admin-genre-pill';
-        adminPill.dataset.genre = 'Spesial 18+';
-        adminPill.style.cssText = 'border-color: rgba(139, 92, 246, 0.6); color: #c084fc; font-weight: 600;';
-        adminPill.textContent = '🌙 Late Night Vault';
-        adminPill.addEventListener('click', () => {
-          DOM.genrePillsList.querySelectorAll('.genre-pill').forEach(p => p.classList.remove('active'));
-          adminPill.classList.add('active');
-          state.selectedGenre = 'Spesial 18+';
-          fetchAnime(false);
-        });
-        DOM.genrePillsList.appendChild(adminPill);
-      }
-    } else {
-      if (adminPill) {
-        if (adminPill.classList.contains('active')) {
-          const allPill = DOM.genrePillsList.querySelector('.genre-pill[data-genre="All"]');
-          if (allPill) allPill.click();
+  // Start Hardware Admin Polling (Check for FD every 5 seconds)
+  setInterval(async () => {
+    try {
+      const res = await fetch('/api/check-admin-fd');
+      const data = await res.json();
+      const isAdmin = data.isAdmin === true;
+      
+      if (isAdmin !== state.adminMode) {
+        state.adminMode = isAdmin;
+        
+        // Unhide or hide the Admin Bottom Nav tab
+        if (DOM.navAdminMode) {
+          DOM.navAdminMode.style.display = isAdmin ? 'flex' : 'none';
         }
-        adminPill.remove();
-      }
-    }
-  };
-
-  const promptAdminPIN = () => {
-    if (state.userProfile && state.userProfile.isAdmin) {
-      // Toggle off for testing? Or just show a toast.
-      showToast('Admin Mode Aktif 👑');
-    } else {
-      showToast('❌ Akses ditolak.');
-    }
-  };
-
-  const toggleBtn = DOM.btnToggleAdmin || document.getElementById('btnToggleAdmin');
-  if (toggleBtn) {
-    toggleBtn.onclick = promptAdminPIN;
-  }
-
-  const changePinBtn = DOM.btnChangeAdminPin || document.getElementById('btnChangeAdminPin');
-  if (changePinBtn) {
-    changePinBtn.onclick = (e) => {
-      if (e) e.preventDefault();
-      const currentStoredPin = getAdminPin();
-      const oldPin = prompt('Masukkan PIN saat ini (default: 6969):');
-      if (oldPin === null) return;
-      const cleanOld = oldPin.trim();
-      if (cleanOld !== currentStoredPin && cleanOld !== '6969' && cleanOld !== '1337' && cleanOld.toLowerCase() !== 'admin') {
-        showToast('❌ PIN lama yang Anda masukkan salah!');
-        return;
-      }
-      const newPin = prompt('Masukkan PIN baru Anda (minimal 4 karakter):');
-      if (!newPin || newPin.trim().length < 4) {
-        showToast('⚠️ PIN baru minimal harus 4 karakter!');
-        return;
-      }
-      localStorage.setItem('otakuverse_admin_pin', newPin.trim());
-      showToast('✅ PIN Brankas berhasil diubah!');
-      if (!state.adminMode) {
-        state.adminMode = true;
-        localStorage.setItem('otakuverse_admin', 'true');
+        
+        if (!isAdmin) {
+          // If they were on the admin tab, kick them back to home
+          if (state.activeTab === 'admin') {
+            document.querySelector('.bottom-nav-item[data-tab="home"]').click();
+          }
+        }
+        if (state.activeTab === 'profile') renderProfile();
         updateAdminUI();
-        const specialPill = document.querySelector('.genre-pill.admin-genre-pill');
-        if (specialPill) specialPill.click();
       }
-    };
-  }
-  // Removed legacy title 5-clicks PIN unlock, moved to Avatar
-  // Admin is now handled by userProfile.isAdmin
-
-  // Custom Stream Injector
-  if (DOM.btnAdminPlayCustom && DOM.adminCustomStreamInput) {
-    DOM.btnAdminPlayCustom.addEventListener('click', () => {
-      const url = DOM.adminCustomStreamInput.value.trim();
-      if (!url) {
-        showToast('⚠️ Masukkan URL video terlebih dahulu');
-        return;
-      }
-      openPlayer({
-        id: 'custom_admin_stream',
-        title: 'Custom Stream (Admin Injector)',
-        native_title: 'Direct Video Stream',
-        source: 'Admin Injector',
-        episodes: [{ number: 1, title: 'Stream Khusus', url: url, stream_url: url }]
-      }, 0);
-    });
-  }
+    } catch (e) {
+      // Ignore polling errors to prevent console spam
+    }
+  }, 5000);
 
   updateAdminUI();
+}
+
+function loadVaultContent(type) {
+  const adminGrid = document.getElementById('adminGrid');
+  if (!adminGrid) return;
+  adminGrid.innerHTML = '<div style="color:#ff0055; grid-column: 1/-1;">Menghubungkan ke secure server...</div>';
+  
+  setTimeout(() => {
+    let mockData = [];
+    if (type === 'kucing') {
+      mockData = [
+        { title: 'Bocchi the Rock! x Kucing Peduli', img: 'https://cdn.myanimelist.net/images/anime/1448/127390.jpg' },
+        { title: 'Kucing Peduli Vol 1', img: 'https://cdn.myanimelist.net/images/anime/1171/109222.jpg' },
+        { title: 'Tugas Akhir Kucing', img: 'https://cdn.myanimelist.net/images/anime/1015/138006.jpg' }
+      ];
+    } else {
+      mockData = [
+        { title: 'Hanime Special 1', img: 'https://cdn.myanimelist.net/images/anime/1908/135431.jpg' },
+        { title: 'Hanime Uncensored', img: 'https://cdn.myanimelist.net/images/anime/1764/126627.jpg' }
+      ];
+    }
+    
+    adminGrid.innerHTML = mockData.map(item => `
+      <div class="anime-card" style="border: 2px solid #ff0055; box-shadow: 0 0 10px #ff0055;">
+        <div class="anime-cover-wrap">
+          <img src="${item.img}" alt="Cover" class="anime-cover">
+          <div class="anime-badge" style="background:#ff0055;">18+</div>
+        </div>
+        <h3 class="anime-title" style="color:#ff0055;">${item.title}</h3>
+      </div>
+    `).join('');
+  }, 1000);
 }
 
 // ==========================================================================
 // EVENT LISTENERS & WIRING
 // ==========================================================================
 function setupEventListeners() {
+  const btnKucingPeduli = document.getElementById('btnKucingPeduli');
+  if (btnKucingPeduli) btnKucingPeduli.addEventListener('click', () => loadVaultContent('kucing'));
+  
+  const btnHanime = document.getElementById('btnHanime');
+  if (btnHanime) btnHanime.addEventListener('click', () => loadVaultContent('hanime'));
+
+  const mediaButtons = document.querySelectorAll('.media-type-btn');
+  if (mediaButtons) {
+    mediaButtons.forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        const mediaType = btn.dataset.type; // 'anime', 'manga', 'ln', 'wn'
+        
+        if (mediaType === 'manga') {
+          // Intent for Tachiyomi / Mihon
+          window.location.href = 'intent://#Intent;package=eu.kanade.tachiyomi;scheme=tachiyomi;end;';
+          // Fallback if failed: wait a bit and alert
+          setTimeout(() => { if(document.hasFocus()) showToast("Tachiyomi tidak terinstall!", "error"); }, 1500);
+          return; // Stay on Anime
+        } else if (mediaType === 'ln') {
+          // Intent for LNReader
+          window.location.href = 'intent://#Intent;package=com.lnreader;scheme=lnreader;end;';
+          setTimeout(() => { if(document.hasFocus()) showToast("LNReader tidak terinstall!", "error"); }, 1500);
+          return;
+        } else if (mediaType === 'wn') {
+          // Intent for WNReader or alternative
+          window.location.href = 'intent://#Intent;package=com.wnreader;scheme=wnreader;end;';
+          setTimeout(() => { if(document.hasFocus()) showToast("WNReader tidak terinstall!", "error"); }, 1500);
+          return;
+        }
+
+        // If anime, just set it as active
+        mediaButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        state.currentMediaType = 'anime';
+        DOM.viewHeaderTitle.textContent = '📺 Katalog Anime';
+        if (DOM.repoSelectorContainer) DOM.repoSelectorContainer.style.display = 'none';
+      });
+    });
+  }
+
   // Quick Fallback Mirror Button
   if (DOM.btnQuickFallbackServer) {
     DOM.btnQuickFallbackServer.addEventListener('click', quickCycleFallbackServer);
@@ -2334,7 +2352,7 @@ function setupEventListeners() {
     clearTimeout(searchTimer);
     searchTimer = setTimeout(() => {
       state.searchQuery = e.target.value.trim();
-      fetchAnime(false);
+      fetchMedia(false);
     }, 380);
   });
 
@@ -2354,7 +2372,7 @@ function setupEventListeners() {
       DOM.sortFilterGroup.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.selectedSort = btn.dataset.sort;
-      fetchAnime(false);
+      fetchMedia(false);
     });
   });
 
@@ -2364,7 +2382,7 @@ function setupEventListeners() {
       DOM.statusFilterGroup.querySelectorAll('.filter-tab').forEach(b => b.classList.remove('active'));
       btn.classList.add('active');
       state.selectedStatus = btn.dataset.status;
-      fetchAnime(false);
+      fetchMedia(false);
     });
   });
 
@@ -2992,22 +3010,108 @@ async function renderUpcomingSchedule(scheduleGrid, dayTabs) {
 // ==========================================================================
 // MANGA FEATURES
 
-async function fetchMangaLatest() {
+async function fetchMangaLatest(isAppend = false) {
+  if (state.isLoading) return;
+  state.isLoading = true;
+
+  if (!isAppend) {
+    state.currentPage = 1;
+    DOM.animeGrid.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; color: var(--text-dim);">
+        <div style="font-size: 2.2rem; margin-bottom: 12px; animation: pulse 1s infinite alternate;">⏳</div>
+        <div style="font-weight: 600; font-size: 1rem; color: #fff;">Mencari Manga/Manhwa...</div>
+      </div>
+    `;
+  }
+
   try {
-    const res = await fetch('/api/manga/latest');
+    let url = '/api/manga/latest';
+    if (state.searchQuery) {
+        url = `/api/manga/search?q=${encodeURIComponent(state.searchQuery)}`;
+    }
+    const res = await fetch(url);
     const json = await res.json();
+    state.isLoading = false;
+    
     if(json.success) {
       renderMangaGrid(json.data);
     } else {
-      showToast('Gagal memuat manga.');
+      DOM.animeGrid.innerHTML = '<div class="empty-state">Gagal memuat manga.</div>';
     }
   } catch (err) {
-    showToast('Error koneksi manga.');
+    state.isLoading = false;
+    DOM.animeGrid.innerHTML = '<div class="empty-state">Error koneksi manga.</div>';
+  }
+}
+
+async function fetchLNLatest(isAppend = false) {
+  if (state.isLoading) return;
+  state.isLoading = true;
+
+  if (!isAppend) {
+    DOM.animeGrid.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; color: var(--text-dim);">
+        <div style="font-size: 2.2rem; margin-bottom: 12px; animation: pulse 1s infinite alternate;">⏳</div>
+        <div style="font-weight: 600; font-size: 1rem; color: #fff;">Mencari Light Novel...</div>
+      </div>
+    `;
+  }
+
+  try {
+    let url = '/api/ln/latest';
+    if (state.searchQuery) {
+        url = `/api/ln/search?q=${encodeURIComponent(state.searchQuery)}`;
+    }
+    const res = await fetch(url);
+    const json = await res.json();
+    state.isLoading = false;
+    
+    if(json.success) {
+      renderMangaGrid(json.data);
+    } else {
+      DOM.animeGrid.innerHTML = '<div class="empty-state">Gagal memuat Light Novel.</div>';
+    }
+  } catch (err) {
+    state.isLoading = false;
+    DOM.animeGrid.innerHTML = '<div class="empty-state">Error koneksi Light Novel.</div>';
+  }
+}
+
+async function fetchWNLatest(isAppend = false) {
+  if (state.isLoading) return;
+  state.isLoading = true;
+
+  if (!isAppend) {
+    DOM.animeGrid.innerHTML = `
+      <div style="grid-column: 1 / -1; padding: 60px 20px; text-align: center; color: var(--text-dim);">
+        <div style="font-size: 2.2rem; margin-bottom: 12px; animation: pulse 1s infinite alternate;">⏳</div>
+        <div style="font-weight: 600; font-size: 1rem; color: #fff;">Mencari Web Novel...</div>
+      </div>
+    `;
+  }
+
+  try {
+    let url = '/api/wn/latest';
+    if (state.searchQuery) {
+        url = `/api/wn/search?q=${encodeURIComponent(state.searchQuery)}`;
+    }
+    const res = await fetch(url);
+    const json = await res.json();
+    state.isLoading = false;
+    
+    if(json.success) {
+      renderMangaGrid(json.data);
+    } else {
+      DOM.animeGrid.innerHTML = '<div class="empty-state">Gagal memuat Web Novel.</div>';
+    }
+  } catch (err) {
+    state.isLoading = false;
+    DOM.animeGrid.innerHTML = '<div class="empty-state">Error koneksi Web Novel.</div>';
   }
 }
 
 function renderMangaGrid(mangaList) {
-  const grid = document.getElementById('mangaGrid');
+  const grid = DOM.animeGrid;
   if(!grid) return;
   grid.innerHTML = '';
   
@@ -3335,18 +3439,16 @@ function renderProfile() {
   if (!profileName) return;
 
   // Set user info
-  if (window.currentUser) {
-    profileName.textContent = window.currentUser.displayName || 'Otaku User';
-    profileEmail.textContent = window.currentUser.email;
-    profileImg.src = window.currentUser.photoURL || 'logo.jpg';
+  if (state.adminMode) {
+    profileName.textContent = 'Admin User';
+    profileEmail.textContent = typeof currentUser !== 'undefined' && currentUser ? currentUser.email : 'Hardware Vault Connected';
+    profileImg.src = typeof currentUser !== 'undefined' && currentUser && currentUser.photoURL ? currentUser.photoURL : 'logo.jpg';
+    btnLogout.style.display = typeof currentUser !== 'undefined' && currentUser ? 'block' : 'none';
+  } else if (typeof currentUser !== 'undefined' && currentUser) {
+    profileName.textContent = currentUser.displayName || 'Otaku User';
+    profileEmail.textContent = currentUser.email;
+    profileImg.src = currentUser.photoURL || 'logo.jpg';
     btnLogout.style.display = 'block';
-    
-    // Auto-grant admin to logged-in users (Owner/Admin Profile)
-    if (!state.userProfile.isAdmin) {
-      state.userProfile.isAdmin = true;
-      saveUserProfile();
-      setupAdminMode();
-    }
   } else {
     profileName.textContent = 'Guest User';
     profileEmail.textContent = 'Belum Login - Progress tersimpan di perangkat';
@@ -3413,3 +3515,79 @@ setInterval(() => {
     if (state.activeTab === 'profile') renderProfile();
   }
 }, 60000);
+
+async function fetchCarousels() {
+  const carousels = [
+    { id: 'carouselTopRated', sort: 'score', perPage: 10 },
+    { id: 'carouselMostRecommended', sort: 'popular', perPage: 10 },
+    { id: 'carouselBestAnime', sort: 'trending', perPage: 10 },
+    { id: 'carouselTopRatedAniList', sort: 'score', genre: 'Romance', perPage: 10 },
+    { id: 'carouselMostRecommendedAniList', sort: 'popular', genre: 'Fantasy', perPage: 10 },
+    { id: 'carouselBestAnimeAniList', sort: 'trending', status: 'Completed', perPage: 10 }
+  ];
+
+  for (const c of carousels) {
+    try {
+      let url = `/api/anime?sort=${c.sort}&perPage=${c.perPage}`;
+      if (c.genre) url += `&genre=${c.genre}`;
+      if (c.status) url += `&status=${c.status}`;
+      
+      const res = await fetch(url);
+      if (res.ok) {
+        const json = await res.json();
+        const items = json.items || [];
+        renderCarousel(c.id, items);
+      }
+    } catch (e) {
+      console.error(`Gagal memuat carousel ${c.id}:`, e);
+    }
+  }
+}
+
+function renderCarousel(containerId, items) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  
+  items.forEach(anime => {
+    const card = document.createElement('article');
+    card.className = 'anime-card';
+    card.dataset.id = anime.id;
+    card.tabIndex = 0;
+    
+    const scoreVal = anime.score ? `★ ${anime.score}` : '★ 8.5';
+    const title = escapeHtml(anime.title);
+    
+    card.innerHTML = `
+      <div class="card-poster-wrap">
+        <img src="${escapeHtml(anime.cover || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600')}" alt="${title}" class="card-poster" loading="lazy" referrerpolicy="no-referrer">
+        <div class="card-top-badges">
+          <span class="score-chip">★ ${anime.score || '8.5'}</span>
+        </div>
+      </div>
+      <div class="card-body">
+        <div class="card-title">${title}</div>
+      </div>
+    `;
+    
+    card.addEventListener('click', () => {
+      openPlayer(anime, 0);
+    });
+    
+    container.appendChild(card);
+  });
+}
+
+// Initialize App-Only Features
+function initAppOnlyFeatures() {
+  const isWebView = navigator.userAgent.includes('wv') || (navigator.userAgent.includes('Android') && !navigator.userAgent.includes('Chrome/'));
+  const isTermuxBuild = true; // Forcing it to true for his testing, or just rely on userAgent. Actually let's use userAgent.
+  
+  if (isWebView || window.matchMedia('(display-mode: standalone)').matches) {
+    const mediaTypeControl = document.getElementById('mediaTypeControl');
+    if (mediaTypeControl) {
+      mediaTypeControl.style.display = 'flex';
+    }
+  }
+}
+document.addEventListener('DOMContentLoaded', initAppOnlyFeatures);

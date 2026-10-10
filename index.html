@@ -194,15 +194,7 @@
         <span>Anime</span>
       </button>
 
-      <!-- MANGA HIDDEN PER USER REQUEST
-      <button type="button" class="bottom-nav-item" data-tab="manga">
-        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
-            <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"></path>
-            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"></path>
-        </svg>
-        <span>Manga</span>
-      </button>
-      -->
+      <!-- MANGA AND NOVEL ARE NOW MOVED TO THE TOP BAR MEDIA SWITCHER -->
 
       <button type="button" class="bottom-nav-item" data-tab="schedule">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
@@ -254,6 +246,12 @@
         <span>Pengaturan</span>
       </button>
 
+      <button type="button" class="bottom-nav-item" id="navAdminMode" data-tab="admin" style="display: none; color: #ff0055;">
+        <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+        </svg>
+      </button>
+
       <a href="download.html" class="bottom-nav-item" target="_blank" style="text-decoration: none;">
         <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2">
           <rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect>
@@ -268,8 +266,14 @@
       
       <!-- TOP APP BAR -->
       <header class="aniyomi-top-bar">
-        <div class="top-bar-left">
+        <div class="top-bar-left" style="display: flex; flex-direction: column; gap: 4px;">
           <div class="view-header-title" id="viewHeaderTitle">📺 Katalog Anime</div>
+          <div class="media-type-segmented-control" id="mediaTypeControl" style="display: none;">
+            <button class="media-type-btn active" data-type="anime">Anime</button>
+            <button class="media-type-btn" data-type="manga">Manga (App)</button>
+            <button class="media-type-btn" data-type="ln">LN (App)</button>
+            <button class="media-type-btn" data-type="wn">WN (App)</button>
+          </div>
         </div>
 
         <div class="top-bar-center">
@@ -284,13 +288,10 @@
 
         <div class="top-bar-right" style="display: flex; align-items: center; gap: 12px;">
           <!-- Source / Ext Scraper Selector -->
-          <div class="source-selector-pill">
-            <span class="source-icon">📡</span>
-            <select id="sourceSelectDropdown" aria-label="Pilih Server Video">
-              <option value="samehadaku" selected>⚡ Server Alpha (1080p FHD)</option>
-              <option value="otakudesu">🌸 Server Beta (720p HD)</option>
-              <option value="kuramanime">🦊 Server Gamma (Fast Mirror)</option>
-              <option value="all">🌐 Server Global (AniList HD)</option>
+          <div class="source-selector-pill" id="repoSelectorContainer" style="display: none;">
+            <span class="source-icon">📚</span>
+            <select id="sourceSelectDropdown" aria-label="Pilih Repo">
+              <!-- Manga & Novel repos injected here via JS -->
             </select>
           </div>
           
@@ -354,8 +355,7 @@
             <div class="sort-tabs" id="sortFilterGroup">
               <button type="button" class="filter-tab active" data-sort="trending">🔥 Trending</button>
               <button type="button" class="filter-tab" data-sort="latest">⚡ Rilis Terbaru (Fall 2026)</button>
-              <button type="button" class="filter-tab" data-sort="popular">👑 Populer</button>
-              <button type="button" class="filter-tab" data-sort="score">⭐ Top Rating</button>
+              <button type="button" class="filter-tab" data-sort="updated">🆕 Baru Update</button>
             </div>
 
             <!-- Status Tabs -->
@@ -409,6 +409,41 @@
         </div>
 
         <!-- Anime Cards Grid -->
+        <!-- CAROUSELS -->
+        <div class="category-section" id="carouselTopRatedContainer">
+          <h3 class="category-title">🏆 Top Rating di MAL</h3>
+          <div class="horizontal-scroll-list" id="carouselTopRated"></div>
+        </div>
+
+        <div class="category-section" id="carouselMostRecommendedContainer">
+          <h3 class="category-title">🌟 Paling Rekomendasi di MAL</h3>
+          <div class="horizontal-scroll-list" id="carouselMostRecommended"></div>
+        </div>
+
+        <div class="category-section" id="carouselBestAnimeContainer">
+          <h3 class="category-title">🔥 Best Anime di MAL</h3>
+          <div class="horizontal-scroll-list" id="carouselBestAnime"></div>
+        </div>
+
+        <div class="category-section" id="carouselTopRatedAniListContainer">
+          <h3 class="category-title">🏆 Top Rating di AniList</h3>
+          <div class="horizontal-scroll-list" id="carouselTopRatedAniList"></div>
+        </div>
+
+        <div class="category-section" id="carouselMostRecommendedAniListContainer">
+          <h3 class="category-title">🌟 Paling Rekomendasi di AniList</h3>
+          <div class="horizontal-scroll-list" id="carouselMostRecommendedAniList"></div>
+        </div>
+
+        <div class="category-section" id="carouselBestAnimeAniListContainer">
+          <h3 class="category-title">🔥 Best Anime di AniList</h3>
+          <div class="horizontal-scroll-list" id="carouselBestAnimeAniList"></div>
+        </div>
+
+        <!-- MAIN CATALOG -->
+        <div class="content-header" style="margin-top: 30px;">
+          <h2>Katalog Semua Anime</h2>
+        </div>
         <div class="anime-grid" id="animeGrid">
           <!-- Rendered dynamically -->
         </div>
@@ -699,42 +734,7 @@
             </div>
           </div>
 
-          <!-- Discreet Advanced Developer & Vault Card -->
-          <div class="settings-card admin-settings-card" id="adminSettingsCard" style="border: 1px solid rgba(139, 92, 246, 0.25); background: linear-gradient(135deg, rgba(99, 102, 241, 0.04), rgba(139, 92, 246, 0.04));">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-              <h3 class="card-heading" style="color: var(--accent-light); margin-bottom: 0;">🔒 Pengaturan Lanjutan &amp; Vault</h3>
-              <span class="status-pill idle" id="adminStatusPill">Terkunci 🔒</span>
-            </div>
-            
-            <div class="setting-row">
-              <div class="setting-info">
-                <span class="setting-title">Akses Fitur Pengembang &amp; Brankas Khusus</span>
-                <span class="setting-desc">Buka kunci fitur stream injector, unduh video, dan koleksi tayangan malam</span>
-              </div>
-              <div class="setting-control" style="display: flex; gap: 8px; flex-wrap: wrap;">
-                <button type="button" class="cta-btn secondary-cta" id="btnChangeAdminPin" style="border-color: rgba(139, 92, 246, 0.4); padding: 8px 14px;">
-                  <span>⚙️ Ganti PIN</span>
-                </button>
-                <button type="button" class="cta-btn primary-cta" id="btnToggleAdmin" style="border-color: rgba(139, 92, 246, 0.4); padding: 8px 14px;">
-                  <span id="btnToggleAdminText">🔑 Buka Kunci Akses</span>
-                </button>
-              </div>
-            </div>
-
-            <div id="adminControlsArea" class="hidden" style="margin-top: 16px; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 16px;">
-
-              <div class="setting-row">
-                <div class="setting-info">
-                  <span class="setting-title">Custom Video Stream Injector</span>
-                  <span class="setting-desc">Tes dan putar langsung URL MP4 / m3u8 / iframe khusus ke MPV Player</span>
-                </div>
-                <div class="setting-control" style="display: flex; gap: 6px; flex: 1; max-width: 340px;">
-                  <input type="text" id="adminCustomStreamInput" placeholder="https://.../video.mp4" class="num-input" style="flex: 1; font-size: 0.8rem; text-align: left; padding: 6px 10px;">
-                  <button type="button" class="cta-btn primary-cta" id="btnAdminPlayCustom" style="padding: 6px 12px; font-size: 0.8rem;">Putar</button>
-                </div>
-              </div>
-            </div>
-          </div>
+          <!-- Admin UI Removed per user request. Admin mode is now purely hardware (FD) triggered. -->
 
           <!-- About Card -->
           <div class="settings-card">
@@ -750,6 +750,22 @@
       </section>
 
     </main>
+
+      <!-- TAB: ADMIN (Vault) -->
+      <section id="viewAdmin" class="tab-view" style="display: none; padding: 20px;">
+        <h2 class="section-title" style="color: #ff0055;">Vault (Ahem Ahem)</h2>
+        <p style="color: var(--text-secondary); margin-bottom: 20px;">Selamat datang Admin. Mode ini hanya terbuka ketika Flashdisk Otakuverse terdeteksi.</p>
+
+        <div style="display: flex; gap: 15px; margin-bottom: 20px;">
+          <button type="button" class="cta-btn primary-cta" id="btnKucingPeduli" style="background: linear-gradient(135deg, #ff0055, #ff4081); border: none;">Buka Kucing Peduli</button>
+          <button type="button" class="cta-btn primary-cta" id="btnHanime" style="background: linear-gradient(135deg, #ff0055, #ff4081); border: none;">Buka Hanime</button>
+        </div>
+
+        <div class="anime-grid" id="adminGrid">
+          <!-- NSFW Content dynamically rendered here -->
+        </div>
+      </section>
+
   </div>
 
   <!-- ======================================================================
@@ -1054,6 +1070,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script src="app.js?v=3.9.8"></script>
+  <script src="app.js?v=4.0.0"></script>
 </body>
 </html>

@@ -160,7 +160,11 @@ function transformMedia(item) {
 
   const studio = item.studios?.nodes?.[0]?.name || 'Studio Animation';
   const episodesCount = item.episodes || 12;
-  const statusStr = item.status === 'RELEASING' ? 'Ongoing' : (item.status === 'FINISHED' ? 'Completed' : 'Upcoming');
+  let statusStr = 'Upcoming';
+  if (item.status === 'RELEASING') statusStr = 'Ongoing';
+  else if (item.status === 'FINISHED') statusStr = 'Completed';
+  else if (item.status === 'CANCELLED') statusStr = 'Cancelled';
+  else if (item.status === 'HIATUS') statusStr = 'Hiatus';
   let trailerId = (item.trailer?.site === 'youtube') ? item.trailer.id : null;
   if (!trailerId && item.id === 21) trailerId = 'S8_YwFLCh4U'; // One Piece Egghead Arc Official Trailer
   if (!trailerId && item.id === 269) trailerId = 'e8YBesRKq_U'; // Bleach TYBW Official Trailer
@@ -274,7 +278,8 @@ async function fetchFromAniList({ page = 1, perPage = 30, search = '', genre = '
     trending: ['TRENDING_DESC', 'POPULARITY_DESC'],
     latest: ['TRENDING_DESC', 'POPULARITY_DESC'],
     popular: ['POPULARITY_DESC'],
-    score: ['SCORE_DESC', 'POPULARITY_DESC']
+    score: ['SCORE_DESC', 'POPULARITY_DESC'],
+    updated: ['UPDATED_AT_DESC']
   };
 
   const variables = {
@@ -418,6 +423,22 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // --- FD HARDWARE CHECK ROUTE ---
+  if (pathname === '/api/check-admin-fd') {
+    try {
+      const storages = fs.readdirSync('/storage');
+      // emulated and self are default internal storage symlinks on Android.
+      // Any other folder (e.g. 1A2B-3C4D) indicates an external OTG/SD card.
+      const hasFd = storages.some(s => s !== 'emulated' && s !== 'self' && s !== 'sdcard0' && s !== 'sdcard1');
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, isAdmin: hasFd }));
+    } catch (e) {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({ success: true, isAdmin: false, error: e.message }));
+    }
+    return;
+  }
+
   // --- MANGADEX ROUTES ---
   if (pathname === '/api/manga/latest') {
     const mangaScraper = require('./manga_scraper');
@@ -465,6 +486,91 @@ const server = http.createServer(async (req, res) => {
     res.end(JSON.stringify({ success: true, data }));
     return;
   }
+
+  // --- LN ROUTES ---
+  if (pathname === '/api/ln/latest') {
+    const lnScraper = require('./ln_scraper');
+    const data = await lnScraper.getLatest();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+  if (pathname === '/api/ln/search') {
+    const q = requestUrl.searchParams.get('q');
+    if(!q) res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, data: [] }));
+    return;
+    const lnScraper = require('./ln_scraper');
+    const data = await lnScraper.search(q);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+  if (pathname === '/api/ln/chapters') {
+    const id = requestUrl.searchParams.get('id');
+    if(!id) res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, data: [] }));
+    return;
+    const lnScraper = require('./ln_scraper');
+    const data = await lnScraper.getChapters(id);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+  if (pathname === '/api/ln/read') {
+    const id = requestUrl.searchParams.get('id');
+    if(!id) res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, data: [] }));
+    return;
+    const lnScraper = require('./ln_scraper');
+    const data = await lnScraper.read(id);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+
+  // --- WN ROUTES ---
+  if (pathname === '/api/wn/latest') {
+    const wnScraper = require('./wn_scraper');
+    const data = await wnScraper.getLatest();
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+  if (pathname === '/api/wn/search') {
+    const q = requestUrl.searchParams.get('q');
+    if(!q) res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, data: [] }));
+    return;
+    const wnScraper = require('./wn_scraper');
+    const data = await wnScraper.search(q);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+  if (pathname === '/api/wn/chapters') {
+    const id = requestUrl.searchParams.get('id');
+    if(!id) res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, data: [] }));
+    return;
+    const wnScraper = require('./wn_scraper');
+    const data = await wnScraper.getChapters(id);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+  if (pathname === '/api/wn/read') {
+    const id = requestUrl.searchParams.get('id');
+    if(!id) res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: false, data: [] }));
+    return;
+    const wnScraper = require('./wn_scraper');
+    const data = await wnScraper.read(id);
+    res.writeHead(200, { "Content-Type": "application/json" });
+    res.end(JSON.stringify({ success: true, data }));
+    return;
+  }
+
 
   // Image Proxy to bypass hotlink & CORS restrictions
   if (pathname === '/api/image-proxy') {
