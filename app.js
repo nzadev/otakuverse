@@ -911,7 +911,7 @@ function renderAnimeGrid(isAppend = false) {
       </div>
       <div class="card-body">
         <div class="card-title" title="${escapeHtml(anime.title)}">${escapeHtml(anime.title)}</div>
-        <div class="card-meta-line">${escapeHtml((anime.studio && !anime.studio.toLowerCase().includes('unknown') && !anime.studio.toLowerCase().includes('studio animation')) ? `${anime.studio} • ${(Array.isArray(anime.genres) && anime.genres.length) ? anime.genres.slice(0, 2).join(', ') : (anime.type || 'TV Series')}` : `${(Array.isArray(anime.genres) && anime.genres.length) ? anime.genres.slice(0, 2).join(', ') : (anime.genre || 'Action')} • ${anime.type || 'TV Series'}`)}</div>
+        <div class="card-meta-line">${escapeHtml((anime.studio && !String(anime.studio).toLowerCase().includes('unknown') && !String(anime.studio).toLowerCase().includes('studio animation')) ? `${Array.isArray(anime.studio) ? anime.studio.join(', ') : anime.studio} • ${(Array.isArray(anime.genres) && anime.genres.length) ? anime.genres.slice(0, 2).join(', ') : (anime.type || 'TV Series')}` : `${(Array.isArray(anime.genres) && anime.genres.length) ? anime.genres.slice(0, 2).join(', ') : (anime.genre || 'Action')} • ${anime.type || 'TV Series'}`)}</div>
       </div>
     `;
 
@@ -954,7 +954,7 @@ function updateHeroSpotlight() {
   DOM.heroBackdrop.style.backgroundImage = `url('${heroBg}')`;
   DOM.heroTitle.textContent = featured.title;
   const featGenres = Array.isArray(featured.genres) && featured.genres.length ? featured.genres.slice(0, 2).join(', ') : 'Action, Fantasy';
-  const featStudio = (featured.studio && !featured.studio.toLowerCase().includes('unknown') && !featured.studio.toLowerCase().includes('studio animation')) ? featured.studio : 'Animation Studio';
+  const featStudio = (featured.studio && !String(featured.studio).toLowerCase().includes('unknown') && !String(featured.studio).toLowerCase().includes('studio animation')) ? (Array.isArray(featured.studio) ? featured.studio.join(', ') : featured.studio) : 'Animation Studio';
   DOM.heroNativeTitle.textContent = `${featStudio} • ${featGenres} (${featured.season || featured.year || '2026'})`;
   DOM.heroSynopsis.textContent = featured.synopsis || 'Dunia fantasi anime spektakuler dengan visual tingkat tinggi dan jalan cerita yang memukau.';
   DOM.heroScore.textContent = `★ ${featured.score || '8.9'}`;
@@ -976,8 +976,9 @@ function openAnimeDetails(anime) {
   state.currentAnime = anime;
 
   // Set Backdrops & Posters (prefer crisp widescreen banner art)
-  const detailBg = (anime.backdrop && anime.backdrop.includes('/banner/'))
-    ? anime.backdrop
+  const bgStr = String(anime.backdrop || '');
+  const detailBg = (bgStr && bgStr.includes('/banner/'))
+    ? bgStr
     : (anime.backdrop || anime.poster);
 
   DOM.detailBackdrop.style.backgroundImage = `url('${detailBg}')`;
@@ -993,7 +994,8 @@ function openAnimeDetails(anime) {
   DOM.detailSourceBadge.textContent = '⚡ Server HD Cloud';
   DOM.detailTitle.textContent = anime.title;
   const detGenres = Array.isArray(anime.genres) && anime.genres.length ? anime.genres.slice(0, 2).join(', ') : (anime.genre || 'Action');
-  const detStudio = (anime.studio && !anime.studio.toLowerCase().includes('unknown') && !anime.studio.toLowerCase().includes('studio animation')) ? anime.studio : 'Studio Animation';
+  const studioStr = String(anime.studio || '');
+  const detStudio = (studioStr && !studioStr.toLowerCase().includes('unknown') && !studioStr.toLowerCase().includes('studio animation')) ? (Array.isArray(anime.studio) ? anime.studio.join(', ') : anime.studio) : 'Studio Animation';
   DOM.detailNativeTitle.textContent = `${detStudio} • ${detGenres} • ${anime.type || 'TV Series'}`;
   
   DOM.detailStatus.textContent = anime.status === 'RELEASING' ? 'Sedang Tayang' : 'Tamat';
@@ -1051,8 +1053,9 @@ function openAnimeDetails(anime) {
 
   // If Otakudesu or Samehadaku anime with url, fetch full live episodes list
   const animeIdStr = String(anime.id);
-  const isOtakudesu = anime.url && (animeIdStr.startsWith('od_') || (anime.source && anime.source.toLowerCase().includes('otakudesu')));
-  const isSamehadaku = anime.url && (animeIdStr.startsWith('sh_') || (anime.source && anime.source.toLowerCase().includes('samehadaku')));
+  const sourceStr = String(anime.source || '');
+  const isOtakudesu = anime.url && (animeIdStr.startsWith('od_') || sourceStr.toLowerCase().includes('otakudesu'));
+  const isSamehadaku = anime.url && (animeIdStr.startsWith('sh_') || sourceStr.toLowerCase().includes('samehadaku'));
 
   if (isOtakudesu || isSamehadaku) {
     const epSource = isOtakudesu ? 'otakudesu' : 'samehadaku';
@@ -1386,7 +1389,8 @@ async function openPlayer(anime, epIndex = 0) {
 
   // If anime or episode has a live scraper target URL or title
   const targetUrl = currentEp.url || anime.url || '';
-  const isOtakudesu = (anime.source && anime.source.toLowerCase().includes('otakudesu')) || (targetUrl && targetUrl.includes('otakudesu'));
+  const sourceStr = String(anime.source || '');
+  const isOtakudesu = (sourceStr.toLowerCase().includes('otakudesu')) || (targetUrl && targetUrl.includes('otakudesu'));
   const targetSource = isOtakudesu ? 'otakudesu' : 'samehadaku';
 
   showToast(`🔍 Mengambil video asli Episode ${currentEp.number} (1080p/720p)...`);
@@ -2024,7 +2028,7 @@ function renderLibrary() {
       </div>
       <div class="card-body">
         <div class="card-title">${escapeHtml(item.title)}</div>
-        <div class="card-meta-line">${escapeHtml((item.studio && !item.studio.toLowerCase().includes('unknown')) ? `${item.studio} • ${item.type || 'TV'}` : `${(Array.isArray(item.genres) && item.genres.length) ? item.genres.slice(0, 2).join(', ') : (item.type || 'TV Series')}`)}</div>
+        <div class="card-meta-line">${escapeHtml((item.studio && !String(item.studio).toLowerCase().includes('unknown')) ? `${Array.isArray(item.studio) ? item.studio.join(', ') : item.studio} • ${item.type || 'TV'}` : `${(Array.isArray(item.genres) && item.genres.length) ? item.genres.slice(0, 2).join(', ') : (item.type || 'TV Series')}`)}</div>
         <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 6px;">
           <span class="status-pill ${item.category === 'completed' ? 'connected' : 'idle'}">
             ${getCategoryLabel(item.category)}
