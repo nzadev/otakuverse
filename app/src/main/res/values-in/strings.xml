@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <string name="app_name" translatable="false">OtakuVerse</string>
+    <string name="slogan">Klien All-in-One Anime, Manga &amp; Novel • Didukung oleh ReDantotsu</string>
+
+    <string name="login">Masuk</string>
+    <string name="logout">Keluar</string>
+    <string name="settings">Pengaturan</string>
+    <string name="extensions">Ekstensi</string>
+    <string name="manage_extension_repos">Kelola Repositori Ekstensi</string>
+    <string name="anime_add_repository">Tambah Repo Anime</string>
+    <string name="manga_add_repository">Tambah Repo Manga</string>
+    <string name="novel_add_repository">Tambah Repo Novel</string>
+    <string name="edit_repositories">Ubah Repositori</string>
+    <string name="add_repository">Tambah Repositori</string>
+    <string name="current_repositories">Repositori Saat Ini</string>
+    <string name="offline_downloads">Unduhan Offline</string>
+    <string name="history">Riwayat</string>
+    <string name="watchlist">Daftar Tontonan</string>
+    <string name="reading_list">Daftar Bacaan</string>
+</resources>
