@@ -1,5 +1,6 @@
 package ani.dantotsu.others
 
+import android.content.DialogInterface
 import android.graphics.Color
 import android.os.Bundle
 import android.view.LayoutInflater
@@ -46,6 +47,11 @@ open class CustomBottomDialog : BottomSheetDialogFragment() {
         positiveCallback = callback
     }
 
+    private var dismissCallback: (() -> Unit)? = null
+    fun setOnDismissListener(callback: () -> Unit) {
+        dismissCallback = callback
+    }
+
     override fun onCreateView(
         inflater: LayoutInflater,
         container: ViewGroup?,
@@ -87,6 +93,11 @@ open class CustomBottomDialog : BottomSheetDialogFragment() {
             }
         }
 
+    }
+
+    override fun onDismiss(dialog: DialogInterface) {
+        super.onDismiss(dialog)
+        dismissCallback?.invoke()
     }
 
     override fun onDestroy() {
