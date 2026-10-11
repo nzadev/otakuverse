@@ -26,8 +26,15 @@ import ani.dantotsu.settings.saving.PrefName
 import ani.dantotsu.statusBarHeight
 import ani.dantotsu.themes.ThemeManager
 import ani.dantotsu.util.customAlertDialog
+import androidx.lifecycle.lifecycleScope
 import com.google.android.material.tabs.TabLayout
 import com.google.android.material.tabs.TabLayoutMediator
+import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
+import eu.kanade.tachiyomi.extension.manga.MangaExtensionManager
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
 import java.util.Locale
 
 class ExtensionsActivity : AppCompatActivity() {
@@ -40,6 +47,17 @@ class ExtensionsActivity : AppCompatActivity() {
         binding = ActivityExtensionsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         initActivity(this)
+
+        lifecycleScope.launch(Dispatchers.IO) {
+            val animeManager = Injekt.get<AnimeExtensionManager>()
+            if (animeManager.availableExtensionsFlow.value.isEmpty()) {
+                animeManager.findAvailableExtensions()
+            }
+            val mangaManager = Injekt.get<MangaExtensionManager>()
+            if (mangaManager.availableExtensionsFlow.value.isEmpty()) {
+                mangaManager.findAvailableExtensions()
+            }
+        }
         AndroidBug5497Workaround.assistActivity(this) {
             if (it) {
                 binding.searchView.updateLayoutParams<ViewGroup.MarginLayoutParams> {

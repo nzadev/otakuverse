@@ -139,15 +139,33 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun isValidUrl(input: String): String? {
-        if (input.startsWith("http://") || input.startsWith("https://")) {
+        val trimmed = input.trim()
+        if (trimmed.isEmpty()) return "Input cannot be empty"
+
+        if (mediaType == MediaType.NOVEL && (trimmed.equals("novel", ignoreCase = true) || trimmed.equals("lnreader", ignoreCase = true) || trimmed.contains("plugin", ignoreCase = true))) {
+            return null
+        }
+
+        if (mediaType == MediaType.ANIME && (trimmed.equals("anime", ignoreCase = true) || trimmed.equals("aniyomi", ignoreCase = true) || trimmed.equals("yuzono", ignoreCase = true))) {
+            return null
+        }
+
+        if (mediaType == MediaType.MANGA && (trimmed.equals("manga", ignoreCase = true) || trimmed.equals("keiyoushi", ignoreCase = true) || trimmed.equals("tachiyomi", ignoreCase = true))) {
+            return null
+        }
+
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
             val validEndings = listOf("index.min.json", "plugins.min.json")
-            if (!validEndings.any { input.removeSuffix("/").endsWith(it) }) {
+            if (!validEndings.any { trimmed.removeSuffix("/").endsWith(it) }) {
+                if (trimmed.contains("github.com")) {
+                    return null
+                }
                 return "URL must end with index.min.json or plugins.min.json"
             }
             return null
         }
 
-        val parts = input.split("/")
+        val parts = trimmed.split("/")
         if (parts.size < 2) {
             return "Must be a full URL or in format: username/repo[/branch]"
         }
@@ -163,16 +181,44 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
     }
 
     private fun getRepoUrl(input: String): String {
-        if (input.startsWith("http://") || input.startsWith("https://")) {
-            return input
+        val trimmed = input.trim()
+        if (mediaType == MediaType.ANIME) {
+            if (trimmed.equals("anime", ignoreCase = true) || trimmed.equals("aniyomi", ignoreCase = true) || trimmed.equals("yuzono", ignoreCase = true)) {
+                return "https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json"
+            }
         }
 
-        val parts = input.split("/")
+        if (mediaType == MediaType.MANGA) {
+            if (trimmed.equals("manga", ignoreCase = true) || trimmed.equals("keiyoushi", ignoreCase = true) || trimmed.equals("tachiyomi", ignoreCase = true)) {
+                return "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json"
+            }
+        }
+
+        if (mediaType == MediaType.NOVEL && (trimmed.equals("novel", ignoreCase = true) || trimmed.equals("lnreader", ignoreCase = true) || trimmed.contains("plugin", ignoreCase = true))) {
+            return "https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json"
+        }
+
+        if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
+            var url = trimmed
+            if (url.contains("github.com") && !url.contains("raw.githubusercontent.com")) {
+                url = url.replace("github.com", "raw.githubusercontent.com")
+                    .replace("/blob/", "/")
+                    .replace("/tree/", "/")
+            }
+            if (!url.endsWith("index.min.json") && !url.endsWith("plugins.min.json")) {
+                val clean = url.removeSuffix("/")
+                val branch = if (mediaType == MediaType.NOVEL) "plugins" else "repo"
+                url = "$clean/$branch/index.min.json"
+            }
+            return url
+        }
+
+        val parts = trimmed.split("/")
         val username = parts[0]
         val repo = parts[1]
-        val branch = if (parts.size >= 3) parts[2] else "repo"
+        val branch = if (parts.size >= 3) parts[2] else if (mediaType == MediaType.NOVEL) "plugins" else "repo"
 
-        return if (mediaType == MediaType.NOVEL && (repo.contains("plugin", ignoreCase = true) || input.contains("lnreader", ignoreCase = true))) {
+        return if (mediaType == MediaType.NOVEL && (repo.contains("plugin", ignoreCase = true) || trimmed.contains("lnreader", ignoreCase = true))) {
             "https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json"
         } else {
             "https://raw.githubusercontent.com/$username/$repo/$branch/index.min.json"

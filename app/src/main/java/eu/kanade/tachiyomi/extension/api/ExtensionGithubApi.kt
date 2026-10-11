@@ -14,12 +14,52 @@ import eu.kanade.tachiyomi.network.GET
 import eu.kanade.tachiyomi.network.NetworkHelper
 import eu.kanade.tachiyomi.network.awaitSuccess
 import eu.kanade.tachiyomi.network.parseAs
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonDecoder
+import kotlinx.serialization.json.JsonPrimitive
 import org.json.JSONArray
 import org.json.JSONObject
 import tachiyomi.core.util.lang.withIOContext
 import uy.kohesive.injekt.injectLazy
+
+object AnyLongSerializer : KSerializer<Long> {
+    override val descriptor: SerialDescriptor =
+        PrimitiveSerialDescriptor("AnyLongSerializer", PrimitiveKind.LONG)
+
+    override fun deserialize(decoder: Decoder): Long {
+        return if (decoder is JsonDecoder) {
+            val element = decoder.decodeJsonElement()
+            if (element is JsonPrimitive) {
+                element.content.toLongOrNull()
+                    ?: element.content.toULongOrNull()?.toLong()
+                    ?: 0L
+            } else {
+                0L
+            }
+        } else {
+            try {
+                decoder.decodeLong()
+            } catch (e: Exception) {
+                try {
+                    decoder.decodeString().toLongOrNull() ?: 0L
+                } catch (e2: Exception) {
+                    0L
+                }
+            }
+        }
+    }
+
+    override fun serialize(encoder: Encoder, value: Long) {
+        encoder.encodeLong(value)
+    }
+}
 
 internal class ExtensionGithubApi {
     private val networkService: NetworkHelper by injectLazy()
@@ -89,8 +129,18 @@ internal class ExtensionGithubApi {
                             .awaitSuccess()
                     } catch (e: Throwable) {
                         Logger.log("Failed to get repo: $repoUrl")
-                        Logger.log(e)
-                        null
+                        val altUrl = when {
+                            repoUrl.contains("/repo/index.min.json") -> repoUrl.replace("/repo/index.min.json", "/main/index.min.json")
+                            repoUrl.contains("/main/index.min.json") -> repoUrl.replace("/main/index.min.json", "/repo/index.min.json")
+                            else -> null
+                        }
+                        if (altUrl != null) {
+                            try {
+                                networkService.client.newCall(GET(altUrl)).awaitSuccess()
+                            } catch (e2: Throwable) {
+                                null
+                            }
+                        } else null
                     }
 
                     val response = githubResponse ?: run {
@@ -99,10 +149,13 @@ internal class ExtensionGithubApi {
                             .awaitSuccess()
                     }
 
-                    val repoExtensions = with(json) {
-                        response
-                            .parseAs<List<ExtensionJsonObject>>()
+                    val bodyString = response.body.string()
+                    val repoExtensions = try {
+                        json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
                             .toAnimeExtensions(it)
+                    } catch (e: Throwable) {
+                        Logger.log("Failed to parse anime extensions with json serializer, falling back to manual: ${e.message}")
+                        parseAnimeExtensionsManually(bodyString, it)
                     }
 
                     val uniqueExtensions = repoExtensions.filter { ext ->
@@ -125,6 +178,71 @@ internal class ExtensionGithubApi {
 
             extensions
         }
+    }
+
+    private fun parseAnimeExtensionsManually(jsonString: String, repository: String): List<AnimeExtension.Available> {
+        val result = mutableListOf<AnimeExtension.Available>()
+        try {
+            val array = JSONArray(jsonString)
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                val name = obj.optString("name", "")
+                val pkg = obj.optString("pkg", "")
+                val apk = obj.optString("apk", "")
+                val lang = obj.optString("lang", "")
+                val code = obj.optLong("code", 0L)
+                val version = obj.optString("version", "")
+                val nsfw = obj.optInt("nsfw", 0)
+                val hasReadme = obj.optInt("hasReadme", 0)
+                val hasChangelog = obj.optInt("hasChangelog", 0)
+
+                val cleanLib = version.removePrefix("v").substringBeforeLast('.')
+                val libVersion = cleanLib.toDoubleOrNull() ?: 0.0
+                if (libVersion < ExtensionLoader.ANIME_LIB_VERSION_MIN || libVersion > ExtensionLoader.ANIME_LIB_VERSION_MAX) {
+                    continue
+                }
+
+                val sourcesList = mutableListOf<AvailableAnimeSources>()
+                val sourcesArray = obj.optJSONArray("sources")
+                if (sourcesArray != null) {
+                    for (j in 0 until sourcesArray.length()) {
+                        val sObj = sourcesArray.optJSONObject(j) ?: continue
+                        val idStr = sObj.optString("id", "")
+                        val id = idStr.toLongOrNull() ?: idStr.toULongOrNull()?.toLong() ?: sObj.optLong("id", 0L)
+                        sourcesList.add(
+                            AvailableAnimeSources(
+                                id = id,
+                                lang = sObj.optString("lang", ""),
+                                name = sObj.optString("name", ""),
+                                baseUrl = sObj.optString("baseUrl", "")
+                            )
+                        )
+                    }
+                }
+
+                val iconUrl = "${repository.removeSuffix("/index.min.json")}/icon/$pkg.png"
+                result.add(
+                    AnimeExtension.Available(
+                        name = name.substringAfter("Aniyomi: "),
+                        pkgName = pkg,
+                        versionName = version,
+                        versionCode = code,
+                        libVersion = libVersion,
+                        lang = lang,
+                        isNsfw = nsfw == 1,
+                        hasReadme = hasReadme == 1,
+                        hasChangelog = hasChangelog == 1,
+                        sources = sourcesList,
+                        apkName = apk,
+                        repository = repository,
+                        iconUrl = iconUrl
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Logger.log("Manual anime extension parse failed: ${e.message}")
+        }
+        return result
     }
 
     fun getAnimeApkUrl(extension: AnimeExtension.Available): String {
@@ -189,8 +307,18 @@ internal class ExtensionGithubApi {
                             .awaitSuccess()
                     } catch (e: Throwable) {
                         Logger.log("Failed to get repo: $repoUrl")
-                        Logger.log(e)
-                        null
+                        val altUrl = when {
+                            repoUrl.contains("/repo/index.min.json") -> repoUrl.replace("/repo/index.min.json", "/main/index.min.json")
+                            repoUrl.contains("/main/index.min.json") -> repoUrl.replace("/main/index.min.json", "/repo/index.min.json")
+                            else -> null
+                        }
+                        if (altUrl != null) {
+                            try {
+                                networkService.client.newCall(GET(altUrl)).awaitSuccess()
+                            } catch (e2: Throwable) {
+                                null
+                            }
+                        } else null
                     }
 
                     val response = githubResponse ?: run {
@@ -199,10 +327,13 @@ internal class ExtensionGithubApi {
                             .awaitSuccess()
                     }
 
-                    val repoExtensions = with(json) {
-                        response
-                            .parseAs<List<ExtensionJsonObject>>()
+                    val bodyString = response.body.string()
+                    val repoExtensions = try {
+                        json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
                             .toMangaExtensions(it)
+                    } catch (e: Throwable) {
+                        Logger.log("Failed to parse manga extensions with json serializer, falling back to manual: ${e.message}")
+                        parseMangaExtensionsManually(bodyString, it)
                     }
 
                     val uniqueExtensions = repoExtensions.filter { ext ->
@@ -225,6 +356,71 @@ internal class ExtensionGithubApi {
 
             extensions
         }
+    }
+
+    private fun parseMangaExtensionsManually(jsonString: String, repository: String): List<MangaExtension.Available> {
+        val result = mutableListOf<MangaExtension.Available>()
+        try {
+            val array = JSONArray(jsonString)
+            for (i in 0 until array.length()) {
+                val obj = array.optJSONObject(i) ?: continue
+                val name = obj.optString("name", "")
+                val pkg = obj.optString("pkg", "")
+                val apk = obj.optString("apk", "")
+                val lang = obj.optString("lang", "")
+                val code = obj.optLong("code", 0L)
+                val version = obj.optString("version", "")
+                val nsfw = obj.optInt("nsfw", 0)
+                val hasReadme = obj.optInt("hasReadme", 0)
+                val hasChangelog = obj.optInt("hasChangelog", 0)
+
+                val cleanLib = version.removePrefix("v").substringBeforeLast('.')
+                val libVersion = cleanLib.toDoubleOrNull() ?: 0.0
+                if (libVersion < ExtensionLoader.MANGA_LIB_VERSION_MIN || libVersion > ExtensionLoader.MANGA_LIB_VERSION_MAX) {
+                    continue
+                }
+
+                val sourcesList = mutableListOf<AvailableMangaSources>()
+                val sourcesArray = obj.optJSONArray("sources")
+                if (sourcesArray != null) {
+                    for (j in 0 until sourcesArray.length()) {
+                        val sObj = sourcesArray.optJSONObject(j) ?: continue
+                        val idStr = sObj.optString("id", "")
+                        val id = idStr.toLongOrNull() ?: idStr.toULongOrNull()?.toLong() ?: sObj.optLong("id", 0L)
+                        sourcesList.add(
+                            AvailableMangaSources(
+                                id = id,
+                                lang = sObj.optString("lang", ""),
+                                name = sObj.optString("name", ""),
+                                baseUrl = sObj.optString("baseUrl", "")
+                            )
+                        )
+                    }
+                }
+
+                val iconUrl = "${repository.removeSuffix("/index.min.json")}/icon/$pkg.png"
+                result.add(
+                    MangaExtension.Available(
+                        name = name.substringAfter("Tachiyomi: "),
+                        pkgName = pkg,
+                        versionName = version,
+                        versionCode = code,
+                        libVersion = libVersion,
+                        lang = lang,
+                        isNsfw = nsfw == 1,
+                        hasReadme = hasReadme == 1,
+                        hasChangelog = hasChangelog == 1,
+                        sources = sourcesList,
+                        apkName = apk,
+                        repository = repository,
+                        iconUrl = iconUrl
+                    )
+                )
+            }
+        } catch (e: Exception) {
+            Logger.log("Manual manga extension parse failed: ${e.message}")
+        }
+        return result
     }
 
     fun getMangaApkUrl(extension: MangaExtension.Available): String {
@@ -398,26 +594,29 @@ internal class ExtensionGithubApi {
 
 @Serializable
 private data class ExtensionJsonObject(
-    val name: String,
-    val pkg: String,
-    val apk: String,
-    val lang: String,
-    val code: Long,
-    val version: String,
-    val nsfw: Int,
+    val name: String = "",
+    val pkg: String = "",
+    val apk: String = "",
+    val lang: String = "",
+    @Serializable(with = AnyLongSerializer::class)
+    val code: Long = 0L,
+    val version: String = "",
+    val nsfw: Int = 0,
     val hasReadme: Int = 0,
     val hasChangelog: Int = 0,
-    val sources: List<ExtensionSourceJsonObject>?,
+    val sources: List<ExtensionSourceJsonObject>? = null,
 )
 
 @Serializable
 private data class ExtensionSourceJsonObject(
-    val id: Long,
-    val lang: String,
-    val name: String,
-    val baseUrl: String,
+    @Serializable(with = AnyLongSerializer::class)
+    val id: Long = 0L,
+    val lang: String = "",
+    val name: String = "",
+    val baseUrl: String = "",
 )
 
 private fun ExtensionJsonObject.extractLibVersion(): Double {
-    return version.substringBeforeLast('.').toDouble()
+    val clean = version.removePrefix("v").substringBeforeLast('.')
+    return clean.toDoubleOrNull() ?: 0.0
 }
