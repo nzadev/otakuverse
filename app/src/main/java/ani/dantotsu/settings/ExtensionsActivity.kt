@@ -57,6 +57,10 @@ class ExtensionsActivity : AppCompatActivity() {
             if (mangaManager.availableExtensionsFlow.value.isEmpty()) {
                 mangaManager.findAvailableExtensions()
             }
+            val novelManager = Injekt.get<ani.dantotsu.parsers.novel.NovelExtensionManager>()
+            if (novelManager.availableExtensionsFlow.value.isEmpty()) {
+                novelManager.findAvailableExtensions()
+            }
         }
         AndroidBug5497Workaround.assistActivity(this) {
             if (it) {

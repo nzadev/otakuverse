@@ -161,12 +161,12 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
         }
 
         if (trimmed.startsWith("http://") || trimmed.startsWith("https://")) {
-            val validEndings = listOf("index.min.json", "plugins.min.json")
+            val validEndings = listOf("index.min.json", "index.json", "plugins.min.json")
             if (!validEndings.any { trimmed.removeSuffix("/").endsWith(it) }) {
                 if (trimmed.contains("github.com")) {
                     return null
                 }
-                return "URL must end with index.min.json or plugins.min.json"
+                return "URL must end with index.json, index.min.json, or plugins.min.json"
             }
             return null
         }
@@ -201,8 +201,12 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
         }
 
         if (mediaType == MediaType.MANGA) {
-            if (trimmed.equals("manga", ignoreCase = true) || trimmed.equals("keiyoushi", ignoreCase = true) || trimmed.equals("tachiyomi", ignoreCase = true)) {
-                return "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json"
+            if (trimmed.equals("manga", ignoreCase = true) ||
+                trimmed.equals("keiyoushi", ignoreCase = true) ||
+                trimmed.equals("tachiyomi", ignoreCase = true) ||
+                trimmed.contains("keiyoushi/extensions", ignoreCase = true)
+            ) {
+                return "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.json"
             }
         }
 

@@ -320,11 +320,22 @@ internal class ExtensionGithubApi {
             val extensions: ArrayList<MangaExtension.Available> = arrayListOf()
             val seenPackages = mutableSetOf<String>()
 
-            val repos =
+            val configuredRepos =
                 PrefManager.getVal<Set<String>>(PrefName.MangaExtensionRepos).toMutableList()
+            if (configuredRepos.isEmpty()) {
+                configuredRepos.add("https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.json")
+            }
 
-            repos.forEach {
-                val repoUrl = if (it.contains("index.min.json")) {
+            configuredRepos.forEach {
+                val repoUrl = if (it.contains("keiyoushi/extensions")) {
+                    if (it.endsWith("index.min.json")) {
+                        it.replace("index.min.json", "index.json")
+                    } else if (!it.endsWith("index.json")) {
+                        "$it${if (it.endsWith('/')) "" else "/"}index.json"
+                    } else {
+                        it
+                    }
+                } else if (it.contains("index.min.json") || it.contains("index.json")) {
                     it
                 } else {
                     "$it${if (it.endsWith('/')) "" else "/"}index.min.json"
@@ -351,32 +362,41 @@ internal class ExtensionGithubApi {
                     }
 
                     val response = githubResponse ?: run {
-                        networkService.client
-                            .newCall(GET(fallbackRepoUrl(it) + "/index.min.json"))
-                            .awaitSuccess()
+                        val fallback = fallbackRepoUrl(it)
+                        if (fallback != null) {
+                            networkService.client
+                                .newCall(GET(fallback + "/index.min.json"))
+                                .awaitSuccess()
+                        } else null
                     }
 
-                    val bodyString = response.body.string()
-                    val repoExtensions = try {
-                        json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
-                            .toMangaExtensions(it)
-                    } catch (e: Throwable) {
-                        Logger.log("Failed to parse manga extensions with json serializer, falling back to manual: ${e.message}")
-                        parseMangaExtensionsManually(bodyString, it)
-                    }
-
-                    val uniqueExtensions = repoExtensions.filter { ext ->
-                        val isNew = !seenPackages.contains(ext.pkgName)
-                        val isNotFiltered = !shouldFilter(ext.pkgName)
-                        if (isNew && isNotFiltered) {
-                            seenPackages.add(ext.pkgName)
-                            true
+                    if (response != null) {
+                        val bodyString = response.body.string()
+                        val repoExtensions = if (bodyString.trimStart().startsWith("{")) {
+                            parseMangaExtensionsManually(bodyString, it)
                         } else {
-                            false
+                            try {
+                                json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
+                                    .toMangaExtensions(it)
+                            } catch (e: Throwable) {
+                                Logger.log("Failed to parse manga extensions with json serializer, falling back to manual: ${e.message}")
+                                parseMangaExtensionsManually(bodyString, it)
+                            }
                         }
-                    }
 
-                    extensions.addAll(uniqueExtensions)
+                        val uniqueExtensions = repoExtensions.filter { ext ->
+                            val isNew = ext.pkgName.isNotBlank() && !seenPackages.contains(ext.pkgName)
+                            val isNotFiltered = !shouldFilter(ext.pkgName)
+                            if (isNew && isNotFiltered) {
+                                seenPackages.add(ext.pkgName)
+                                true
+                            } else {
+                                false
+                            }
+                        }
+
+                        extensions.addAll(uniqueExtensions)
+                    }
                 } catch (e: Throwable) {
                     Logger.log("Failed to get extensions from GitHub")
                     Logger.log(e)
@@ -390,24 +410,35 @@ internal class ExtensionGithubApi {
     private fun parseMangaExtensionsManually(jsonString: String, repository: String): List<MangaExtension.Available> {
         val result = mutableListOf<MangaExtension.Available>()
         try {
-            val array = JSONArray(jsonString)
+            val array = if (jsonString.trimStart().startsWith("{")) {
+                val rootObj = JSONObject(jsonString)
+                rootObj.optJSONObject("extensionList")?.optJSONArray("extensions")
+                    ?: rootObj.optJSONArray("extensions")
+                    ?: JSONArray()
+            } else {
+                JSONArray(jsonString)
+            }
+
             for (i in 0 until array.length()) {
                 val obj = array.optJSONObject(i) ?: continue
                 val name = obj.optString("name", "")
-                val pkg = obj.optString("pkg", "")
-                val apk = obj.optString("apk", "")
-                val lang = obj.optString("lang", "")
-                val code = obj.optLong("code", 0L)
-                val version = obj.optString("version", "")
-                val nsfw = obj.optInt("nsfw", 0)
-                val hasReadme = obj.optInt("hasReadme", 0)
-                val hasChangelog = obj.optInt("hasChangelog", 0)
+                val pkg = obj.optString("packageName", obj.optString("pkg", ""))
+                val resources = obj.optJSONObject("resources")
+                val apk = resources?.optString("apkUrl", "") ?: obj.optString("apk", "")
+                val version = obj.optString("versionName", obj.optString("version", ""))
+                val code = obj.optString("versionCode", "0").toLongOrNull()
+                    ?: obj.optLong("versionCode", obj.optLong("code", 0L))
 
-                val cleanLib = version.removePrefix("v").substringBeforeLast('.')
-                val libVersion = cleanLib.toDoubleOrNull() ?: 0.0
+                val libStr = obj.optString("extensionLib", version)
+                val cleanLib = libStr.removePrefix("v").substringBeforeLast('.')
+                val libVersion = cleanLib.toDoubleOrNull() ?: libStr.toDoubleOrNull() ?: 0.0
                 if (libVersion < ExtensionLoader.MANGA_LIB_VERSION_MIN || libVersion > ExtensionLoader.MANGA_LIB_VERSION_MAX) {
                     continue
                 }
+
+                val nsfw = if (obj.optString("contentWarning") == "CONTENT_WARNING_NSFW" || obj.optInt("nsfw", 0) == 1) 1 else 0
+                val hasReadme = obj.optInt("hasReadme", 0)
+                val hasChangelog = obj.optInt("hasChangelog", 0)
 
                 val sourcesList = mutableListOf<AvailableMangaSources>()
                 val sourcesArray = obj.optJSONArray("sources")
@@ -419,15 +450,18 @@ internal class ExtensionGithubApi {
                         sourcesList.add(
                             AvailableMangaSources(
                                 id = id,
-                                lang = sObj.optString("lang", ""),
+                                lang = sObj.optString("language", sObj.optString("lang", "")),
                                 name = sObj.optString("name", ""),
-                                baseUrl = sObj.optString("baseUrl", "")
+                                baseUrl = sObj.optString("homeUrl", sObj.optString("baseUrl", ""))
                             )
                         )
                     }
                 }
 
-                val iconUrl = "${repository.removeSuffix("/index.min.json")}/icon/$pkg.png"
+                val lang = obj.optString("lang", if (sourcesList.isNotEmpty()) sourcesList[0].lang else "all")
+                val iconUrl = resources?.optString("iconUrl", "")
+                    ?: "${repository.removeSuffix("/").removeSuffix("index.json").removeSuffix("index.min.json")}/icon/$pkg.png"
+
                 result.add(
                     MangaExtension.Available(
                         name = name.substringAfter("Tachiyomi: "),
@@ -453,7 +487,11 @@ internal class ExtensionGithubApi {
     }
 
     fun getMangaApkUrl(extension: MangaExtension.Available): String {
-        return "${extension.repository.removeSuffix("index.min.json")}/apk/${extension.apkName}"
+        if (extension.apkName.startsWith("http://") || extension.apkName.startsWith("https://")) {
+            return extension.apkName
+        }
+        val base = extension.repository.removeSuffix("/").removeSuffix("index.min.json").removeSuffix("index.json").removeSuffix("/")
+        return "$base/apk/${extension.apkName}"
     }
 
     suspend fun findNovelExtensions(): List<NovelExtension.Available> {
@@ -464,6 +502,9 @@ internal class ExtensionGithubApi {
 
             val repos =
                 PrefManager.getVal<Set<String>>(PrefName.NovelExtensionRepos).toMutableList()
+            if (repos.isEmpty()) {
+                repos.add("https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json")
+            }
 
             repos.forEach {
                 val repoUrl = if (it.contains("index.min.json") || it.contains("plugins.min.json")) {
@@ -478,78 +519,76 @@ internal class ExtensionGithubApi {
                             .awaitSuccess()
                     } catch (e: Throwable) {
                         Logger.log("Failed to get repo: $repoUrl")
-                        Logger.log(e)
-                        null
-                    }
-
-                    val response = githubResponse ?: run {
                         val fallback = fallbackRepoUrl(it)
-                        val url = if (it.contains("plugins.min.json")) {
-                            "$fallback/plugins.min.json"
-                        } else {
-                            "$fallback/index.min.json"
-                        }
-                        networkService.client
-                            .newCall(GET(url))
-                            .awaitSuccess()
+                        if (fallback != null) {
+                            val url = if (it.contains("plugins.min.json")) {
+                                "$fallback/plugins.min.json"
+                            } else {
+                                "$fallback/index.min.json"
+                            }
+                            try {
+                                networkService.client.newCall(GET(url)).awaitSuccess()
+                            } catch (e2: Throwable) {
+                                null
+                            }
+                        } else null
                     }
 
-                    val responseBody = response.body?.string() ?: ""
-                    var parsedStandard = false
-                    
-                    try {
-                        val repoExtensions = json.decodeFromString<List<ExtensionJsonObject>>(responseBody).toNovelExtensions(it)
-                        val uniqueExtensions = repoExtensions.filter { ext ->
-                            val isNew = !seenPackages.contains(ext.pkgName)
-                            val isNotFiltered = !shouldFilter(ext.pkgName)
-                            if (isNew && isNotFiltered) {
-                                seenPackages.add(ext.pkgName)
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                        extensions.addAll(uniqueExtensions)
-                        parsedStandard = true
-                    } catch (e: Exception) {
-                        // ignore standard parse error
-                    }
-                    
-                    if (!parsedStandard) {
-                        try {
-                            val arr = JSONArray(responseBody)
-                            for (i in 0 until arr.length()) {
-                                val obj = arr.getJSONObject(i)
-                                val pluginId = obj.getString("id")
-                                val pkgName = "lnreader.plugin.$pluginId"
-                                
-                                if (!seenPackages.contains(pkgName)) {
-                                    seenPackages.add(pkgName)
-                                    val iconUrl = obj.optString("iconUrl", "")
-                                    val urlForPlugin = obj.getString("url")
-                                    val fallbackIcon = if (iconUrl.isNotBlank()) iconUrl else "https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/icon/default.png"
-                                    
-                                    extensions.add(
-                                        NovelExtension.Available(
-                                            name = obj.getString("name"),
-                                            pkgName = pkgName,
-                                            versionName = obj.getString("version"),
-                                            versionCode = 1,
-                                            repository = it,
-                                            sources = emptyList(),
-                                            iconUrl = fallbackIcon,
-                                            apkName = urlForPlugin
+                    val response = githubResponse
+                    if (response != null) {
+                        val responseBody = response.body.string()
+                        if (it.contains("plugins.min.json") || responseBody.contains("\"site\":") || responseBody.contains("\"url\":")) {
+                            try {
+                                val arr = JSONArray(responseBody)
+                                for (i in 0 until arr.length()) {
+                                    val obj = arr.getJSONObject(i)
+                                    val pluginId = obj.getString("id")
+                                    val pkgName = "lnreader.plugin.$pluginId"
+
+                                    if (!seenPackages.contains(pkgName)) {
+                                        seenPackages.add(pkgName)
+                                        val iconUrl = obj.optString("iconUrl", "")
+                                        val urlForPlugin = obj.getString("url")
+                                        val fallbackIcon = if (iconUrl.isNotBlank()) iconUrl else "https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/icon/default.png"
+
+                                        extensions.add(
+                                            NovelExtension.Available(
+                                                name = obj.getString("name"),
+                                                pkgName = pkgName,
+                                                versionName = obj.getString("version"),
+                                                versionCode = 1,
+                                                repository = it,
+                                                sources = emptyList(),
+                                                iconUrl = fallbackIcon,
+                                                apkName = urlForPlugin
+                                            )
                                         )
-                                    )
+                                    }
                                 }
+                            } catch (e2: Exception) {
+                                Logger.log("Failed to parse LNReader repo: ${e2.message}")
                             }
-                        } catch (e2: Exception) {
-                            Logger.log("Failed to parse $it as either standard or LNReader repo")
-                            Logger.log(e2)
+                        } else {
+                            try {
+                                val repoExtensions = json.decodeFromString<List<ExtensionJsonObject>>(responseBody).toNovelExtensions(it)
+                                val uniqueExtensions = repoExtensions.filter { ext ->
+                                    val isNew = ext.pkgName.isNotBlank() && !seenPackages.contains(ext.pkgName)
+                                    val isNotFiltered = !shouldFilter(ext.pkgName)
+                                    if (isNew && isNotFiltered) {
+                                        seenPackages.add(ext.pkgName)
+                                        true
+                                    } else {
+                                        false
+                                    }
+                                }
+                                extensions.addAll(uniqueExtensions)
+                            } catch (e: Exception) {
+                                Logger.log("Standard novel parse failed: ${e.message}")
+                            }
                         }
                     }
                 } catch (e: Throwable) {
-                    Logger.log("Failed to get extensions from GitHub")
+                    Logger.log("Failed to get extensions from GitHub: ${e.message}")
                     Logger.log(e)
                 }
             }
