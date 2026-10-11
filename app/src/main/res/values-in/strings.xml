@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources xmlns:tools="http://schemas.android.com/tools">
     <string name="app_name" translatable="false">OtakuVerse</string>
-    <string name="slogan">Klien All-in-One Anime, Manga &amp; Novel • Didukung oleh ReDantotsu</string>
+    <string name="slogan">Klien All-in-One Anime, Manga &amp; Novel • Liquid Glass UI</string>
 
     <string name="login">Masuk</string>
     <string name="logout">Keluar</string>

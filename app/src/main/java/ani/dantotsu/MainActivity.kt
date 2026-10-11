@@ -2,6 +2,7 @@ package ani.dantotsu
 
 import android.animation.ObjectAnimator
 import android.annotation.SuppressLint
+import android.content.DialogInterface
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.drawable.Animatable
@@ -526,9 +527,16 @@ class MainActivity : AppCompatActivity() {
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     if (!(PrefManager.getVal(PrefName.AllowOpeningLinks) as Boolean)) {
-                        CustomBottomDialog.newInstance().apply {
-                            title = "Allow ReDantotsu to automatically open Anilist & MAL Links?"
-                            val md = "Open settings & click +Add Links & select Anilist & Mal urls"
+                        val appName = getString(R.string.app_name)
+                        val linkDialog = object : CustomBottomDialog() {
+                            override fun onDismiss(dialog: DialogInterface) {
+                                super.onDismiss(dialog)
+                                PrefManager.setVal(PrefName.AllowOpeningLinks, true)
+                            }
+                        }
+                        linkDialog.apply {
+                            title = "Allow $appName to automatically open AniList & MAL links?"
+                            val md = "Open Android Settings, tap **Add links**, and select AniList & MAL URLs to open them directly in $appName."
                             addView(TextView(this@MainActivity).apply {
                                 val markWon =
                                     Markwon.builder(this@MainActivity)

@@ -441,7 +441,7 @@
     <string name="checking_subscriptions">Notification for Checking Subscriptions</string>
     <string name="subscriptions_checking_time_s">Subscriptions Update Frequency : %1$s</string>
     <string name="subscriptions_checking_time">Subscriptions Update Frequency</string>
-    <string name="subscriptions_info">Amount of time for ReDantotsu to periodically check for new Episodes/Chapters\n(Less time will cause more battery consumption)</string>
+    <string name="subscriptions_info">Amount of time for OtakuVerse to periodically check for new Episodes/Chapters\n(Less time will cause more battery consumption)</string>
     <string name="do_not_update">Don\'t Update</string>
     <string name="loading_chap_number">Loading Chapter %1$s</string>
     <string name="sort_by_release_date">Sort by Release Date</string>
@@ -463,7 +463,7 @@
     <string name="discord_dantotsu_button">Display dantotsu in the second button</string>
     <string name="discord_anilist_button">Display your AniList profile instead</string>
     <string name="discord_rich_presence">Discord Rich Presence</string>
-    <string name="stream_on_dantotsu">Stream on ReDantotsu</string>
+    <string name="stream_on_dantotsu">Stream on OtakuVerse</string>
     <string name="view_my_anilist">View My AniList</string>
 
     <string name="jobless_message">DAMN! YOU TRULY ARE JOBLESS\nYOU REACHED THE END</string>
@@ -565,9 +565,9 @@
     <string name="type_source">SOURCE</string>
     <string name="type_contains">CONTAINS</string>
 
-    <string name="read_on_dantotsu">Read on ReDantotsu</string>
-    <string name="watch_on_dantotsu">Watch on ReDantotsu</string>
-    <string name="view_profile_in_dantotsu">View Profile in ReDantotsu</string>
+    <string name="read_on_dantotsu">Read on OtakuVerse</string>
+    <string name="watch_on_dantotsu">Watch on OtakuVerse</string>
+    <string name="view_profile_in_dantotsu">View Profile in OtakuVerse</string>
     <string name="continue_episode">Continue : Episode %1$s%2$s\n%3$s</string>
     <string name="filler_tag"> - Filler</string>
     <string name="continue_chapter">Continue : %1$s\n%2$s</string>
@@ -951,8 +951,8 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
     <string name="restrict_messages_desc">Allow only users I follow to message me</string>
 
     <string name="notifications_desc">Customise your news and updates</string>
-    <string name="about_desc">Learn more about ReDantotsu</string>
-    <string name="faq_desc">General questions about ReDantotsu</string>
+    <string name="about_desc">Learn more about OtakuVerse</string>
+    <string name="faq_desc">General questions about OtakuVerse</string>
     <string name="check_app_updates_desc">Check Github for app updates</string>
     <string name="share_username_in_crash_reports_desc">Share username in crash reports</string>
     <string name="devs_desc">ReDantotsu/Dantotsu\'s very own unpaid labours </string>
@@ -1113,7 +1113,7 @@ Non quae tempore quo provident laudantium qui illo dolor vel quia dolor et exerc
 
     <!-- Donation Dialog -->
     <string name="support_development">Support Development ✨</string>
-    <string name="donate_dialog_desc">Your support helps keep ReDantotsu alive and improving!</string>
+    <string name="donate_dialog_desc">Your support helps keep OtakuVerse alive and improving!</string>
     <string name="become_a_supporter">Become a Supporter</string>
     <string name="opening_checkout_page">Opening checkout page…</string>
 
