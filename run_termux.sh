@@ -12,7 +12,13 @@ killall cloudflared 2>/dev/null
 sleep 1
 
 echo "2. Menjalankan OtakuVerse..."
-cd "$(dirname "$0")"
+if [ -d "/data/data/com.termux/files/home/otakuverse" ]; then
+    cd "/data/data/com.termux/files/home/otakuverse"
+elif [ -d "$HOME/otakuverse" ]; then
+    cd "$HOME/otakuverse"
+else
+    cd "$(dirname "$0")"
+fi
 nohup node server.js > server.log 2>&1 &
 
 echo "3. Membuat Jalur Publik Cloudflare Tunnel..."
