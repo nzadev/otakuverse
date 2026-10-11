@@ -1,24 +1,22 @@
 # 🌌 OtakuVerse
 
 > **The Ultimate All-in-One Anime, Manga & Light Novel Client for Android**  
-> *Liquid Glass UI • Zero Ads • Pre-Configured Indonesian & Global Extensions • Powered by ReDantotsu & Aniyomi Ecosystem*
+> *Liquid Glass UI • Zero Ads • Native DNS-over-HTTPS • Powered by ReDantotsu & Aniyomi Ecosystem*
 
 ---
 
-## 🌟 Nilai Tambah & Fitur Unggulan OtakuVerse
+## 🌟 Fitur Unggulan OtakuVerse
 
-Berbeda dengan aplikasi lain yang mengharuskan pengguna "menyelam" mencari repositori ekstensi secara manual, **OtakuVerse** hadir dengan solusi siap pakai (*Out-of-the-Box*):
-
-1. **🚀 Pre-Configured Repositories (Tanpa Perlu Nyelam Cari Repo)**:
-   - **Anime Sub Indo & Global**: Terintegrasi langsung dengan Aniyomi Anime Repository (*Samehadaku, Otakudesu, Kuramanime, Gogoanime, HiAnime*).
-   - **Manga Bahasa Indonesia**: Terintegrasi langsung dengan Keiyoushi Extension Repository (*KomikCast, Kiryuu, WestManga, Mangaku, Komiku, MangaDex*).
-   - **Light Novel & Web Novel**: Terintegrasi langsung dengan LNReader Plugins Repository (*IndoWebnovel, BacaNovel, NovelFull, Wuxiaworld*).
-2. **💎 Liquid Glass UI & 60 FPS Animations**:
-   - Tampilan modern, elegan, transparan, dan responsif.
-3. **📊 Full AniList & MyAnimeList Integration**:
-   - Sinkronisasi riwayat tontonan/bacaan secara otomatis ke cloud.
-4. **🛡️ 100% Free & Open Source**:
-   - Tanpa iklan, tanpa pelacak pihak ketiga, tanpa server backend terpusat.
+1. **🛡️ 100% Content-Neutral Blank Shell (Bebas Risiko Hukum)**:
+   - OtakuVerse tidak menyertakan, meng-host, atau membundel sumber konten berhak cipta apa pun. Pengguna memegang kendali penuh atas ekstensi yang mereka pasang.
+2. **🌐 Built-in DNS-over-HTTPS (Anti-Blokir ISP Otomatis Tanpa VPN)**:
+   - Terintegrasi dengan Cloudflare DoH (1.1.1.1) secara bawaan sehingga pengguna dapat menjelajahi web secara bebas tanpa terkendala pemblokiran DNS lokal ISP.
+3. **💎 Liquid Glass UI & 60 FPS Animations**:
+   - Tampilan modern, elegan, transparan, dan sangat responsif.
+4. **📊 Integrasi Lengkap AniList & MyAnimeList**:
+   - Sinkronisasi riwayat tontonan dan bacaan langsung ke akun cloud Anda.
+5. **📖 All-in-One Reader & Player**:
+   - Mendukung pemutaran Anime, pembaca Manga, dan pembaca teks Novel (LN & WN) dalam satu aplikasi.
 
 ---
 
@@ -28,30 +26,31 @@ Anda bisa mengunduh file `.apk` terbaru langsung dari [GitHub Releases](../../re
 
 ---
 
-## 🛠️ Build dari Source Code (GitHub Actions)
+## 🛠️ Build dari Source Code
 
-Repositori ini telah dilengkapi dengan workflow otomatis **GitHub Actions** (`.github/workflows/build-apk.yml`).
+Pastikan Anda memiliki JDK 17/21 dan Android SDK. Jalankan:
 
-1. Fork repositori ini ke akun GitHub Anda.
-2. Buka tab **Actions** > **Build OtakuVerse APK**.
-3. Klik **Run workflow**. File `.apk` siap install akan otomatis dibuat dan dapat diunduh dari tab Artifacts / Releases.
+```bash
+chmod +x build_apk.sh
+./build_apk.sh
+```
 
 ---
 
 ## ⚖️ Legal Disclaimer & Credits
 
 ```text
-OtakuVerse does not host, store, or upload any copyrighted media files.
-All content is fetched on-demand by the client application via independent third-party open-source extensions.
-OtakuVerse operates strictly as an open-source media player and tracking client.
+OtakuVerse does not host, store, or stream any media files.
+OtakuVerse is strictly an open-source media player and tracking client.
+All media extensions are independently operated and maintained by third parties.
 ```
 
 ### 🙏 Open-Source Attribution
-OtakuVerse is customized and maintained by **NZADev**, proudly standing on the shoulders of giants:
+OtakuVerse is maintained by **NZADev**, proudly standing on the shoulders of giants:
 - **[ReDantotsu](https://github.com/AsrOfficialDev/ReDantotsu)** by AsrOfficialDev
 - **[Dantotsu](https://github.com/rebelonion/Dantotsu)** by rebelonion
 - **[Aniyomi](https://github.com/aniyomi/aniyomi)**
 - **[Tachiyomi / Mihon](https://github.com/mihonapp/mihon)**
 - **[LNReader](https://github.com/LNReader/lnreader)**
 
-Distributed under the Open Source License.
+Distributed under Open Source License.
