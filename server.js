@@ -1111,14 +1111,14 @@ const requestHandler = async (req, res) => {
 
 const server = http.createServer(requestHandler);
 
-// Vercel Serverless Export
-if (process.env.VERCEL) {
-  module.exports = requestHandler;
-} else {
+module.exports = requestHandler;
+
+if (require.main === module) {
   server.listen(PORT, '0.0.0.0', () => {
     console.log(`[OtakuVerse Engine v2.2] Server berjalan di http://localhost:${PORT}`);
     console.log(`[OtakuVerse Engine v2.2] Streaming Video HTTP Range 206 Activated.`);
   });
 }
+
 
 

@@ -23,7 +23,7 @@ function fetchCurl(url, extraArgs = []) {
       '--doh-url', 'https://1.1.1.1/dns-query',
       '-k',
       '-sL',
-      '--max-time', '10',
+      '--max-time', '6',
       '-A', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36',
       '-H', 'Accept: text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
       '-H', 'Accept-Language: id-ID,id;q=0.9,en-US;q=0.8,en;q=0.7',
@@ -300,11 +300,11 @@ async function enrichItemsWithAniListCovers(items) {
 // ==========================================================================
 // 1. SAMEHADAKU LIVE SCRAPER (v2.samehadaku.how)
 // ==========================================================================
-let SAMEHADAKU_BASE = 'https://v2.samehadaku.how';
+let SAMEHADAKU_BASE = 'https://samehadaku.care';
 const SAMEHADAKU_DOMAINS = [
-  'https://v2.samehadaku.how',
-  'https://samehadaku.email',
   'https://samehadaku.care',
+  'https://samehadaku.email',
+  'https://v2.samehadaku.how',
   'https://samehadaku.day',
   'https://194.31.53.112'
 ];
@@ -907,8 +907,9 @@ async function resolveStreamByTitle(title, episodeNumber = 1, romajiTitle = '', 
 
   // Extract core keywords from both title and romaji (handling English + Romaji parenthesized formats)
   const candidates = [];
-  const addCandidate = (str) => {
-    if (!str) return;
+  const addCandidate = (val) => {
+    if (!val) return;
+    const str = String(val);
     const clean = str
       .replace(/Season\s*\d+/gi, '')
       .replace(/S\d+/gi, '')

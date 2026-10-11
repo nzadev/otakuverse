@@ -3,3 +3,9 @@ node_modules/
 .env
 .DS_Store
 *.tar.gz
+scratch/
+check_ids.js
+mock.js
+patch_init.js
+puppeteer_test.js
+vercel_index.html
