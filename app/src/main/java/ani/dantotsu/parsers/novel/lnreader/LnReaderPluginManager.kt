@@ -9,9 +9,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
+import uy.kohesive.injekt.Injekt
+import uy.kohesive.injekt.api.get
+import eu.kanade.tachiyomi.network.NetworkHelper
+import okhttp3.Request
 import java.io.File
-import java.net.HttpURLConnection
-import java.net.URL
+import java.util.Locale
 
 /**
  * Manages LNReader JavaScript plugins:
@@ -50,9 +53,15 @@ class LnReaderPluginManager(private val context: Context) {
             return@withContext
         }
         val plugins = mutableListOf<LnReaderPlugin>()
+        val networkService: NetworkHelper = Injekt.get()
         for (repoUrl in repos) {
             try {
-                val json = URL(repoUrl).readText()
+                val request = Request.Builder()
+                    .url(repoUrl)
+                    .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                    .build()
+                val response = networkService.client.newCall(request).execute()
+                val json = response.body?.string() ?: continue
                 val arr = JSONArray(json)
                 for (i in 0 until arr.length()) {
                     val obj = arr.getJSONObject(i)
@@ -85,11 +94,21 @@ class LnReaderPluginManager(private val context: Context) {
      */
     suspend fun installPlugin(plugin: LnReaderPlugin): Boolean = withContext(Dispatchers.IO) {
         try {
-            val conn = URL(plugin.url).openConnection() as HttpURLConnection
-            conn.connect()
-            val jsContent = conn.inputStream.bufferedReader().readText()
-            conn.disconnect()
+            val networkService: NetworkHelper = Injekt.get()
+            val request = Request.Builder()
+                .url(plugin.url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+                .build()
+            val response = networkService.client.newCall(request).execute()
+            if (!response.isSuccessful) {
+                Logger.log("LnReaderPluginManager: HTTP ${response.code} downloading ${plugin.id}")
+                return@withContext false
+            }
+            val jsContent = response.body?.string() ?: return@withContext false
             pluginFile(plugin.id).writeText(jsContent)
+            if (_availablePlugins.value.none { it.id == plugin.id }) {
+                _availablePlugins.value = _availablePlugins.value + plugin
+            }
             refreshInstalled()
             true
         } catch (e: Exception) {
@@ -123,7 +142,17 @@ class LnReaderPluginManager(private val context: Context) {
             ?.toSet()
             ?: emptySet()
 
-        _installedPlugins.value = _availablePlugins.value
-            .filter { it.id in installedIds }
+        val knownPlugins = _availablePlugins.value.associateBy { it.id }
+        _installedPlugins.value = installedIds.map { id ->
+            knownPlugins[id] ?: LnReaderPlugin(
+                id = id,
+                name = id.replaceFirstChar { if (it.isLowerCase()) it.titlecase(Locale.ROOT) else it.toString() },
+                site = "",
+                lang = "all",
+                version = "1.0.0",
+                url = "",
+                iconUrl = ""
+            )
+        }
     }
 }

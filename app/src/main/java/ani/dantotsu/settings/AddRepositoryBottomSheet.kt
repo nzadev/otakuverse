@@ -148,19 +148,15 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
         }
 
         val parts = input.split("/")
-        if (parts.size !in 2..3) {
+        if (parts.size < 2) {
             return "Must be a full URL or in format: username/repo[/branch]"
         }
 
         val username = parts[0]
         val repo = parts[1]
-        val branch = if (parts.size == 3) parts[2] else "repo"
 
         if (username.isBlank() || repo.isBlank()) {
             return "Username and repository name cannot be empty"
-        }
-        if (parts.size == 3 && branch.isBlank()) {
-            return "Branch name cannot be empty"
         }
 
         return null
@@ -174,9 +170,13 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
         val parts = input.split("/")
         val username = parts[0]
         val repo = parts[1]
-        val branch = if (parts.size == 3) parts[2] else "repo"
+        val branch = if (parts.size >= 3) parts[2] else "repo"
 
-        return "https://raw.githubusercontent.com/$username/$repo/$branch/index.min.json"
+        return if (mediaType == MediaType.NOVEL && (repo.contains("plugin", ignoreCase = true) || input.contains("lnreader", ignoreCase = true))) {
+            "https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json"
+        } else {
+            "https://raw.githubusercontent.com/$username/$repo/$branch/index.min.json"
+        }
     }
 
     private fun onRepositoryRemoved(url: String, mediaType: MediaType) {
@@ -236,6 +236,7 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
                     PrefManager.setVal(PrefName.NovelExtensionRepos, novel)
                     CoroutineScope(Dispatchers.IO).launch {
                         Injekt.get<NovelExtensionManager>().findAvailableExtensions()
+                        Injekt.get<ani.dantotsu.parsers.novel.lnreader.LnReaderPluginManager>().fetchAvailablePlugins()
                     }
                 }
             }

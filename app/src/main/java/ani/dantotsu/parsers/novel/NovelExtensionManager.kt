@@ -166,10 +166,11 @@ class NovelExtensionManager(private val context: Context) {
                     val success = lnReaderPluginManager.installPlugin(plugin)
                     if (success) {
                         subscriber.onNext(InstallStep.Installed)
+                        subscriber.onCompleted()
                     } else {
                         subscriber.onNext(InstallStep.Error)
+                        subscriber.onError(Exception("Failed to download plugin file"))
                     }
-                    subscriber.onCompleted()
                 }
             }
         }
