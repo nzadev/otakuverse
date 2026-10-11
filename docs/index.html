@@ -1,48 +1,59 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="id">
 
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ReDantotsu - The Ultimate Anime & Manga Tracker</title>
+    <title>OtakuVerse - The Ultimate Anime, Manga & Novel Hub</title>
     <meta name="description"
-        content="ReDantotsu: A fan remake of Dantotsu with a stunning iOS-style Liquid Glass UI. Track Anime, Manga, and Light Novels with tracking support for AniList & MAL.">
-    <meta name="keywords"
-        content="ReDantotsu, Dantotsu, Anime App, Manga Reader, AniList Client, MyAnimeList Client, Android Anime App">
+        content="OtakuVerse: Aplikasi all-in-one Anime, Manga, dan Light Novel untuk Android dengan UI Cyberpunk Liquid Glass super mulus.">
     <link rel="stylesheet" href="style.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link rel="canonical" href="https://asrofficialdev.github.io/ReDantotsu/">
-
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website">
-    <meta property="og:url" content="https://asrofficialdev.github.io/ReDantotsu/">
-    <meta property="og:title" content="ReDantotsu - The Ultimate Anime & Manga Tracker">
-    <meta property="og:description"
-        content="ReDantotsu: A fan remake of Dantotsu with a stunning iOS-style Liquid Glass UI. Track Anime, Manga, and Light Novels with tracking support for AniList & MAL.">
-    <meta property="og:image" content="https://i.postimg.cc/Hn4Lk7DY/Home_page.jpg">
-
-    <!-- JSON-LD Structured Data -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "ReDantotsu",
-      "operatingSystem": "Android",
-      "applicationCategory": "EntertainmentApplication",
-      "offers": {
-        "@type": "Offer",
-        "price": "0",
-        "priceCurrency": "USD"
-      },
-      "description": "ReDantotsu is a premium anime and manga tracking application for Android featuring a stunning Liquid Glass UI.",
-      "softwareVersion": "1.0.3",
-      "author": {
-        "@type": "Person",
-        "name": "Ashraful"
-      }
-    }
-    </script>
+    <style>
+        .repo-card {
+            background: var(--glass-bg);
+            border: 1px solid var(--glass-border);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(12px);
+            transition: transform 0.2s, border-color 0.2s;
+        }
+        .repo-card:hover {
+            transform: translateY(-3px);
+            border-color: var(--primary);
+        }
+        .repo-title {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            font-size: 1.25rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-main);
+        }
+        .repo-desc {
+            color: var(--text-dim);
+            font-size: 0.95rem;
+            margin-bottom: 16px;
+        }
+        .btn-group {
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+        .badge {
+            display: inline-block;
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            background: rgba(168, 85, 247, 0.2);
+            color: #d8b4fe;
+            border: 1px solid rgba(168, 85, 247, 0.4);
+        }
+    </style>
 </head>
 
 <body>
@@ -51,99 +62,114 @@
 
     <nav>
         <div class="logo">
-            <i class="fas fa-play-circle" style="color: var(--primary)"></i> ReDantotsu
+            <i class="fas fa-play-circle" style="color: var(--primary)"></i> OtakuVerse
         </div>
         <div class="nav-links">
-            <a href="https://github.com/AsrOfficialDev/ReDantotsu">GitHub</a>
-            <a href="https://github.com/AsrOfficialDev/ReDantotsu/issues">Support</a>
-            <a href="https://redantotsu-checkout.vercel.app/pricing" style="color: var(--primary)">Donate</a>
+            <a href="#extensions">Repositori Ekstensi</a>
+            <a href="https://github.com/nzadev/otakuverse">GitHub</a>
+            <a href="https://github.com/nzadev/otakuverse/releases/latest" style="color: var(--primary)">Download APK</a>
         </div>
     </nav>
 
     <header class="hero">
         <div class="hero-content">
-            <h1>Anime Tracking <br><span class="highlight">Reimagined.</span></h1>
-            <p>Experience the ultimate AniList & MAL client for Android. Featuring a stunning Liquid Glass UI, 60fps
-                animations, and powerful tracking tools.</p>
+            <h1>Anime, Manga & Novel <br><span class="highlight">All in One.</span></h1>
+            <p>Pengalaman streaming anime, baca manga, manhwa, dan web novel tanpa gangguan iklan dalam satu aplikasi Android super kencang dengan tema Cyberpunk Neon Violet.</p>
             <div class="cta-buttons">
-                <a href="https://github.com/AsrOfficialDev/ReDantotsu/releases/latest" class="btn btn-primary">
-                    <i class="fab fa-android"></i> Download APK
+                <a href="#extensions" class="btn btn-primary">
+                    <i class="fas fa-bolt"></i> 1-Klik Pasang Repositori
                 </a>
-                <a href="https://github.com/AsrOfficialDev/ReDantotsu" class="btn btn-secondary">
-                    <i class="fab fa-github"></i> View Source
+                <a href="https://github.com/nzadev/otakuverse/releases/latest" class="btn btn-secondary">
+                    <i class="fab fa-android"></i> Download APK Terbaru
                 </a>
             </div>
-        </div>
-
-        <div class="hero-visual">
-            <div class="phone-mockup">
-                <!-- Replace with your actual screenshot -->
-                <img src="https://i.postimg.cc/Hn4Lk7DY/Home_page.jpg" alt="App Screenshot"
-                    style="width: 100%; height: 100%; object-fit: cover;">
-            </div>
-
-            <div class="glass-card">
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-                    <i class="fas fa-chart-line" style="color: var(--primary)"></i>
-                    <strong>Trending</strong>
-                </div>
-                <div style="height: 4px; background: rgba(255,255,255,0.1); border-radius: 2px;">
-                    <div style="width: 70%; height: 100%; background: var(--primary); border-radius: 2px;"></div>
-                </div>
-            </div>
-
-            <div class="glass-card-2"></div>
         </div>
     </header>
 
-    <section class="features">
-        <h2>Why ReDantotsu?</h2>
-        <div class="grid">
-            <div class="feature-card">
-                <div class="icon"><i class="fas fa-tint"></i></div>
-                <h3>Liquid Glass UI</h3>
-                <p>A modern, translucent design language inspired by iOS 26 concepts, featuring real-time blur and fluid
-                    animations.</p>
+    <section id="extensions" class="features" style="max-width: 900px; margin: 0 auto; padding: 40px 20px;">
+        <div style="text-align: center; margin-bottom: 40px;">
+            <span class="badge">1-TAP REPO INSTALLER</span>
+            <h2 style="font-size: 2.2rem; margin-top: 10px;">Repositori Ekstensi Komunitas</h2>
+            <p style="color: var(--text-dim); max-width: 600px; margin: 10px auto;">
+                Buka halaman ini lewat browser di HP kamu, lalu cukup tekan tombol <strong>"Pasang ke OtakuVerse"</strong>. Aplikasi akan otomatis terbuka dan menambahkan ribuan sumber dalam 1 detik!
+            </p>
+        </div>
+
+        <!-- Anime Repo -->
+        <div class="repo-card">
+            <div class="repo-title">
+                <i class="fas fa-tv" style="color: #38bdf8;"></i> Repositori Anime (Aniyomi)
             </div>
-            <div class="feature-card">
-                <div class="icon"><i class="fas fa-sync-alt"></i></div>
-                <h3>Seamless Sync</h3>
-                <p>Keep your progress in check. Fully integrated with AniList and MyAnimeList for real-time tracking.
-                </p>
+            <p class="repo-desc">
+                Sumber anime sub Indo & global: <strong>Samehadaku, Otakudesu, Kuramanime, Gogoanime, Zorox</strong>, dan ratusan server anime streaming lainnya.
+            </p>
+            <div class="btn-group">
+                <a href="aniyomi://add-repo?url=https://raw.githubusercontent.com/aniyomiorg/aniyomi-extensions/repo/index.min.json" class="btn btn-primary">
+                    <i class="fas fa-bolt"></i> Pasang Repo Anime ke OtakuVerse
+                </a>
+                <button onclick="copyRepo('https://raw.githubusercontent.com/aniyomiorg/aniyomi-extensions/repo/index.min.json')" class="btn btn-secondary">
+                    <i class="fas fa-copy"></i> Salin URL
+                </button>
             </div>
-            <div class="feature-card">
-                <div class="icon"><i class="fas fa-puzzle-piece"></i></div>
-                <h3>Extension System</h3>
-                <p>Read manga, light novels, and watch anime from various sources using our powerful extension system.
-                </p>
+        </div>
+
+        <!-- Manga Repo -->
+        <div class="repo-card">
+            <div class="repo-title">
+                <i class="fas fa-book-open" style="color: #a855f7;"></i> Repositori Manga & Komik (Keiyoushi)
             </div>
-            <div class="feature-card">
-                <div class="icon"><i class="fas fa-rocket"></i></div>
-                <h3>Performance First</h3>
-                <p>Optimized for speed. Enjoy 60fps scrolling and interactions, even on mid-range devices.</p>
+            <p class="repo-desc">
+                Sumber manga, manhwa & manhua sub Indo: <strong>KomikCast, Kiryuu, WestManga, Mangaku, AsuraScans, FlameScans</strong>, dan ribuan katalog komik dunia.
+            </p>
+            <div class="btn-group">
+                <a href="tachiyomi://add-repo?url=https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json" class="btn btn-primary">
+                    <i class="fas fa-bolt"></i> Pasang Repo Manga ke OtakuVerse
+                </a>
+                <button onclick="copyRepo('https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json')" class="btn btn-secondary">
+                    <i class="fas fa-copy"></i> Salin URL
+                </button>
             </div>
-            <div class="feature-card">
-                <div class="icon"><i class="fas fa-shield-alt"></i></div>
-                <h3>Privacy Focused</h3>
-                <p>Your data stays yours. ReDantotsu respects your privacy and is fully open-source.</p>
+        </div>
+
+        <!-- Novel Repo -->
+        <div class="repo-card">
+            <div class="repo-title">
+                <i class="fas fa-feather-alt" style="color: #f472b6;"></i> Repositori Light Novel (LNReader)
             </div>
-            <div class="feature-card">
-                <div class="icon"><i class="fas fa-download"></i></div>
-                <h3>Offline Mode</h3>
-                <p>Download your favorite chapters and episodes to enjoy them anywhere, anytime without internet.</p>
+            <p class="repo-desc">
+                Sumber web novel & light novel: <strong>IndoWebnovel, BacaNovel, NovelFull, RoyalRoad, WuxiaWorld</strong>, dan puluhan katalog novel terjemahan.
+            </p>
+            <div class="btn-group">
+                <a href="novelyomi://add-repo?url=https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json" class="btn btn-primary">
+                    <i class="fas fa-bolt"></i> Pasang Repo Novel ke OtakuVerse
+                </a>
+                <button onclick="copyRepo('https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json')" class="btn btn-secondary">
+                    <i class="fas fa-copy"></i> Salin URL
+                </button>
             </div>
         </div>
     </section>
 
     <footer>
         <div class="footer-links">
-            <a href="https://github.com/AsrOfficialDev/ReDantotsu">GitHub</a>
-            <a href="https://discord.gg/fYEJmDsDz9">Discord</a>
-            <a href="https://t.me/redantotsu">Telegram</a>
+            <a href="https://github.com/nzadev/otakuverse">GitHub OtakuVerse</a>
+            <a href="https://github.com/nzadev/otakuverse/releases">Releases</a>
         </div>
-        <p>&copy; 2026 ReDantotsu Project. Licensed under UPL.</p>
-        <p style="font-size: 0.8rem; margin-top: 1rem; opacity: 0.5;">Not affiliated with AniList or MyAnimeList.</p>
+        <p>&copy; 2026 OtakuVerse by NZADev. Licensed under Apache 2.0 / UPL.</p>
+        <p style="font-size: 0.8rem; margin-top: 1rem; opacity: 0.6; max-width: 700px; margin-left: auto; margin-right: auto;">
+            <strong>Disclaimer Legalitas (Safe Harbor):</strong> OtakuVerse adalah mesin pembaca modular dan pemutar media independen tanpa konten bawaan (blank shell). Aplikasi ini tidak menyimpan, tidak meng-host, dan tidak mendistribusikan konten berhak cipta apa pun. Semua ekstensi dan sumber disediakan oleh repositori pihak ketiga independen.
+        </p>
     </footer>
+
+    <script>
+        function copyRepo(url) {
+            navigator.clipboard.writeText(url).then(() => {
+                alert("URL repositori berhasil disalin ke clipboard!");
+            }).catch(() => {
+                prompt("Salin URL repositori ini secara manual:", url);
+            });
+        }
+    </script>
 
 </body>
 

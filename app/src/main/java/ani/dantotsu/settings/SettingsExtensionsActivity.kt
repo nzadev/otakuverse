@@ -25,6 +25,7 @@ import ani.dantotsu.settings.saving.PrefName
 import ani.dantotsu.statusBarHeight
 import ani.dantotsu.themes.ThemeManager
 import ani.dantotsu.toast
+import ani.dantotsu.openLinkInBrowser
 import ani.dantotsu.util.customAlertDialog
 import eu.kanade.domain.base.BasePreferences
 import uy.kohesive.injekt.Injekt
@@ -84,26 +85,11 @@ class SettingsExtensionsActivity : AppCompatActivity() {
                 arrayListOf(
                     Settings(
                         type = 0,
-                        name = "⚡ Pasang Otomatis Semua Repo Komunitas",
-                        desc = "1-Klik langsung aktifkan repo Anime (Aniyomi), Manga (Keiyoushi), dan Novel (LNReader)",
+                        name = "⚡ Direktori & 1-Klik Pasang Repo Komunitas",
+                        desc = "Buka direktori repositori ekstensi komunitas resmi untuk pasang 1-klik langsung ke OtakuVerse",
                         icon = R.drawable.ic_download_24,
                         onClick = {
-                            AddRepositoryBottomSheet.addRepoWarning(context) {
-                                AddRepositoryBottomSheet.addRepo(
-                                    "https://raw.githubusercontent.com/aniyomiorg/aniyomi-extensions/repo/index.min.json",
-                                    MediaType.ANIME
-                                )
-                                AddRepositoryBottomSheet.addRepo(
-                                    "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json",
-                                    MediaType.MANGA
-                                )
-                                AddRepositoryBottomSheet.addRepo(
-                                    "https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json",
-                                    MediaType.NOVEL
-                                )
-                                toast("Semua Repo Komunitas berhasil dipasang!")
-                                recreate()
-                            }
+                            openLinkInBrowser("https://nzadev.github.io/otakuverse/#extensions")
                         }
                     ),
                     Settings(

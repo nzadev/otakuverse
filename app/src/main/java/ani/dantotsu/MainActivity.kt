@@ -47,6 +47,7 @@ import ani.dantotsu.home.LoginFragment
 import ani.dantotsu.home.MangaFragment
 import ani.dantotsu.home.NoInternet
 import ani.dantotsu.media.MediaDetailsActivity
+import ani.dantotsu.media.MediaType
 import ani.dantotsu.notifications.TaskScheduler
 import ani.dantotsu.others.CustomBottomDialog
 import ani.dantotsu.others.calc.CalcActivity
@@ -599,19 +600,16 @@ class MainActivity : AppCompatActivity() {
             if (uri == null) {
                 throw Exception("Uri is null")
             }
-            if ((uri.scheme == "tachiyomi" || uri.scheme == "aniyomi" || uri.scheme == "novelyomi") && uri.host == "add-repo") {
+            if ((uri.scheme == "tachiyomi" || uri.scheme == "aniyomi" || uri.scheme == "novelyomi" || uri.scheme == "otakuverse") && uri.host == "add-repo") {
                 val url = uri.getQueryParameter("url") ?: throw Exception("No url for repo import")
-                val (prefName, name) = when (uri.scheme) {
-                    "tachiyomi" -> PrefName.MangaExtensionRepos to "Manga"
-                    "aniyomi" -> PrefName.AnimeExtensionRepos to "Anime"
-                    "novelyomi" -> PrefName.NovelExtensionRepos to "Novel"
-                    else -> throw Exception("Invalid scheme")
+                val typeParam = uri.getQueryParameter("type")
+                val (name: String, mediaType: MediaType) = when {
+                    uri.scheme == "aniyomi" || typeParam == "anime" -> "Anime" to MediaType.ANIME
+                    uri.scheme == "novelyomi" || typeParam == "novel" -> "Novel" to MediaType.NOVEL
+                    else -> "Manga" to MediaType.MANGA
                 }
-                val savedRepos: Set<String> = PrefManager.getVal(prefName)
-                val newRepos = savedRepos.toMutableSet()
                 AddRepositoryBottomSheet.addRepoWarning(this) {
-                    newRepos.add(url)
-                    PrefManager.setVal(prefName, newRepos)
+                    AddRepositoryBottomSheet.addRepo(url, mediaType)
                     toast("$name Extension Repo added")
                 }
 

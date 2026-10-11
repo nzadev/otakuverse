@@ -12,6 +12,7 @@ import androidx.recyclerview.widget.LinearLayoutManager
 import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.R
 import ani.dantotsu.copyToClipboard
+import ani.dantotsu.openLinkInBrowser
 import ani.dantotsu.databinding.BottomSheetAddRepositoryBinding
 import ani.dantotsu.databinding.ItemRepoBinding
 import ani.dantotsu.media.MediaType
@@ -95,19 +96,10 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
             MediaType.NOVEL -> getString(R.string.novel_add_repository)
         }
 
-        binding.btnQuickAddCommunityRepo.text = when (mediaType) {
-            MediaType.ANIME -> "⚡ 1-Klik Pasang Repo Anime (Aniyomi)"
-            MediaType.MANGA -> "⚡ 1-Klik Pasang Repo Manga (Keiyoushi)"
-            MediaType.NOVEL -> "⚡ 1-Klik Pasang Repo Novel (LNReader)"
-        }
-
+        binding.btnQuickAddCommunityRepo.text = "⚡ Buka Direktori Repo Komunitas (1-Klik Web)"
         binding.btnQuickAddCommunityRepo.setOnClickListener {
-            val defaultUrl = when (mediaType) {
-                MediaType.ANIME -> "https://raw.githubusercontent.com/aniyomiorg/aniyomi-extensions/repo/index.min.json"
-                MediaType.MANGA -> "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json"
-                MediaType.NOVEL -> "https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json"
-            }
-            acceptUrl(defaultUrl)
+            openLinkInBrowser("https://nzadev.github.io/otakuverse/#extensions")
+            dismiss()
         }
 
         binding.addButton.setOnClickListener {

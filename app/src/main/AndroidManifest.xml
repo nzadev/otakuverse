@@ -404,6 +404,7 @@
                 <data android:scheme="tachiyomi"/>
                 <data android:scheme="aniyomi"/>
                 <data android:scheme="novelyomi"/>
+                <data android:scheme="otakuverse"/>
             </intent-filter>
             <intent-filter android:label="Dantotsu Payment Success">
                 <action android:name="android.intent.action.VIEW" />
