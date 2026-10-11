@@ -84,15 +84,6 @@ class SettingsExtensionsActivity : AppCompatActivity() {
             settingsRecyclerView.adapter = SettingsAdapter(
                 arrayListOf(
                     Settings(
-                        type = 0,
-                        name = "⚡ Direktori & 1-Klik Pasang Repo Komunitas",
-                        desc = "Buka direktori repositori ekstensi komunitas resmi untuk pasang 1-klik langsung ke OtakuVerse",
-                        icon = R.drawable.ic_download_24,
-                        onClick = {
-                            openLinkInBrowser("https://nzadev.github.io/otakuverse/#extensions")
-                        }
-                    ),
-                    Settings(
                         type = 1,
                         name = getString(R.string.anime_add_repository),
                         desc = getString(R.string.anime_add_repository_desc),
