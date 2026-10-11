@@ -62,6 +62,12 @@ abstract class BaseParser {
      *
      * Isn't necessary to override, but recommended, if you want to improve auto search results
      * **/
+    private val stopWords = setOf(
+        "a", "an", "the", "no", "ni", "wa", "ga", "de", "to", "o", "and", "or", "of", "in", "on", "at",
+        "season", "movie", "part", "batch", "sub", "indo", "chapter", "raw", "scan", "scans",
+        "komik", "manhwa", "manga", "manhua", "indonesia", "tamat", "completed", "ongoing"
+    )
+
     private fun sanitizeTitle(title: String): String {
         return title.lowercase()
             .replace(Regex("(?i)\\[[^\\]]*\\]"), " ")
@@ -72,11 +78,29 @@ abstract class BaseParser {
             .trim()
     }
 
+    private fun extractKeywords(sanitized: String): Set<String> {
+        return sanitized.split(" ")
+            .map { it.trim() }
+            .filter { it.length >= 2 && it !in stopWords }
+            .toSet()
+    }
+
     private fun computeMatchScore(resultName: String, targetTitle: String): Int {
         val sRes = sanitizeTitle(resultName)
         val sTarget = sanitizeTitle(targetTitle)
         if (sRes.isEmpty() || sTarget.isEmpty()) return 0
         if (sRes == sTarget) return 100
+
+        val targetTokens = extractKeywords(sTarget)
+        val resTokens = extractKeywords(sRes)
+        if (targetTokens.isNotEmpty() && resTokens.isNotEmpty()) {
+            val missingFromRes = targetTokens.filter { t -> !resTokens.any { r -> FuzzySearch.ratio(t, r) >= 80 } }
+            val extraInRes = resTokens.filter { r -> !targetTokens.any { t -> FuzzySearch.ratio(r, t) >= 80 } }
+            if (missingFromRes.isNotEmpty() && extraInRes.isNotEmpty()) {
+                return 30
+            }
+        }
+
         val tokenSet = FuzzySearch.tokenSetRatio(sRes, sTarget)
         val weighted = FuzzySearch.weightedRatio(sRes, sTarget)
         val ratio = FuzzySearch.ratio(sRes, sTarget)
@@ -102,12 +126,18 @@ abstract class BaseParser {
 
         val targetTitles = mutableListOf<String>()
         val mainName = mediaObj.mainName().trim()
-        if (mainName.isNotEmpty()) targetTitles.add(mainName)
         val romaji = mediaObj.nameRomaji.trim()
+        val mangaName = mediaObj.mangaName().trim()
+
+        if (this is AnimeParser && romaji.isNotEmpty()) {
+            targetTitles.add(romaji)
+        }
+        if (mainName.isNotEmpty() && !targetTitles.any { it.equals(mainName, ignoreCase = true) }) {
+            targetTitles.add(mainName)
+        }
         if (romaji.isNotEmpty() && !targetTitles.any { it.equals(romaji, ignoreCase = true) }) {
             targetTitles.add(romaji)
         }
-        val mangaName = mediaObj.mangaName().trim()
         if (mangaName.isNotEmpty() && !targetTitles.any { it.equals(mangaName, ignoreCase = true) }) {
             targetTitles.add(mangaName)
         }
@@ -134,9 +164,18 @@ abstract class BaseParser {
         var highestScore = 0
 
         val queriesToTry = mutableListOf<String>()
-        if (mainName.isNotEmpty()) queriesToTry.add(mainName)
-        if (romaji.isNotEmpty() && !queriesToTry.any { it.equals(romaji, ignoreCase = true) }) queriesToTry.add(romaji)
-        if (mangaName.isNotEmpty() && !queriesToTry.any { it.equals(mangaName, ignoreCase = true) }) queriesToTry.add(mangaName)
+        if (this is AnimeParser && romaji.isNotEmpty()) {
+            queriesToTry.add(romaji)
+        }
+        if (mainName.isNotEmpty() && !queriesToTry.any { it.equals(mainName, ignoreCase = true) }) {
+            queriesToTry.add(mainName)
+        }
+        if (romaji.isNotEmpty() && !queriesToTry.any { it.equals(romaji, ignoreCase = true) }) {
+            queriesToTry.add(romaji)
+        }
+        if (mangaName.isNotEmpty() && !queriesToTry.any { it.equals(mangaName, ignoreCase = true) }) {
+            queriesToTry.add(mangaName)
+        }
         for (syn in mediaObj.synonyms) {
             val cleanSyn = syn.trim()
             if (cleanSyn.isNotEmpty() && !queriesToTry.any { it.equals(cleanSyn, ignoreCase = true) }) {
