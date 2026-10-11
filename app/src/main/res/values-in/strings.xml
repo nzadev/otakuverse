@@ -14,8 +14,4 @@
     <string name="edit_repositories">Ubah Repositori</string>
     <string name="add_repository">Tambah Repositori</string>
     <string name="current_repositories">Repositori Saat Ini</string>
-    <string name="offline_downloads">Unduhan Offline</string>
-    <string name="history">Riwayat</string>
-    <string name="watchlist">Daftar Tontonan</string>
-    <string name="reading_list">Daftar Bacaan</string>
 </resources>
