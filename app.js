@@ -3528,12 +3528,7 @@ setInterval(() => {
 
 async function fetchCarousels() {
   const carousels = [
-    { id: 'carouselTopRated', sort: 'score', perPage: 10 },
-    { id: 'carouselMostRecommended', sort: 'popular', perPage: 10 },
-    { id: 'carouselBestAnime', sort: 'trending', perPage: 10 },
-    { id: 'carouselTopRatedAniList', sort: 'score', genre: 'Romance', perPage: 10 },
-    { id: 'carouselMostRecommendedAniList', sort: 'popular', genre: 'Fantasy', perPage: 10 },
-    { id: 'carouselBestAnimeAniList', sort: 'trending', status: 'Completed', perPage: 10 }
+    { id: 'carouselMostRecommended', sort: 'popular', perPage: 12 }
   ];
 
   for (const c of carousels) {
