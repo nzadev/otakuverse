@@ -7,6 +7,8 @@ import android.view.LayoutInflater
 import android.view.ViewGroup
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.isVisible
 import androidx.core.view.updateLayoutParams
 import androidx.recyclerview.widget.LinearLayoutManager
@@ -43,9 +45,14 @@ class SettingsExtensionsActivity : AppCompatActivity() {
         binding = ActivitySettingsExtensionsBinding.inflate(layoutInflater)
         setContentView(binding.root)
         binding.apply {
-            settingsExtensionsLayout.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                topMargin = statusBarHeight
-                bottomMargin = navBarHeight
+            ViewCompat.setOnApplyWindowInsetsListener(settingsExtensionsLayout) { v, insets ->
+                val status = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+                val nav = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+                v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                    topMargin = status.top
+                    bottomMargin = nav.bottom
+                }
+                insets
             }
             extensionSettingsBack.setOnClickListener {
                 onBackPressedDispatcher.onBackPressed()

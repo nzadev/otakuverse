@@ -13,5 +13,7 @@
     <string name="novel_add_repository">Tambah Repo Novel</string>
     <string name="edit_repositories">Ubah Repositori</string>
     <string name="add_repository">Tambah Repositori</string>
-    <string name="current_repositories">Repositori Saat Ini</string>
+    <string name="add_repository_desc">Format tautan: username/repo atau https://raw.githubusercontent.com/.../index.min.json</string>
+    <string name="current_repositories">Repositori Terpasang</string>
+    <string name="no_repositories_found">Belum ada repositori kustom terpasang</string>
 </resources>

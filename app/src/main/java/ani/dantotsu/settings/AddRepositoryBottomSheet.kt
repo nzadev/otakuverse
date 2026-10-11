@@ -8,6 +8,11 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.EditorInfo
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.isVisible
+import androidx.core.view.updatePadding
+import androidx.core.widget.doOnTextChanged
 import androidx.recyclerview.widget.LinearLayoutManager
 import ani.dantotsu.BottomSheetDialogFragment
 import ani.dantotsu.R
@@ -18,7 +23,10 @@ import ani.dantotsu.media.MediaType
 import ani.dantotsu.parsers.novel.NovelExtensionManager
 import ani.dantotsu.settings.saving.PrefManager
 import ani.dantotsu.settings.saving.PrefName
+import ani.dantotsu.toPx
 import ani.dantotsu.util.customAlertDialog
+import com.google.android.material.bottomsheet.BottomSheetBehavior
+import com.google.android.material.bottomsheet.BottomSheetDialog
 import com.xwray.groupie.GroupieAdapter
 import com.xwray.groupie.viewbinding.BindableItem
 import eu.kanade.tachiyomi.extension.anime.AnimeExtensionManager
@@ -34,6 +42,8 @@ class RepoItem(
     private val mediaType: MediaType,
     val onRemove: (String, MediaType) -> Unit
 ) : BindableItem<ItemRepoBinding>() {
+    override fun getId(): Long = url.hashCode().toLong()
+
     override fun getLayout() = R.layout.item_repo
 
     override fun bind(viewBinding: ItemRepoBinding, position: Int) {
@@ -54,8 +64,10 @@ class RepoItem(
     private fun String.cleanShownUrl(): String {
         return this
             .removePrefix("https://raw.githubusercontent.com/")
-            .replace("index.min.json", "")
-            .replace("plugins.min.json", "")
+            .removeSuffix("/index.min.json")
+            .removeSuffix("/index.json")
+            .removeSuffix("/plugins.min.json")
+            .removeSuffix("/plugins.json")
             .removeSuffix("/")
     }
 }
@@ -78,8 +90,22 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
         return binding.root
     }
 
+    override fun onStart() {
+        super.onStart()
+        (dialog as? BottomSheetDialog)?.behavior?.apply {
+            skipCollapsed = true
+            state = BottomSheetBehavior.STATE_EXPANDED
+        }
+    }
+
     override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
         super.onViewCreated(view, savedInstanceState)
+
+        binding.mediaTypeBadge.text = when (mediaType) {
+            MediaType.ANIME -> "ANIME"
+            MediaType.MANGA -> "MANGA"
+            MediaType.NOVEL -> "NOVEL"
+        }
 
         binding.repositoriesRecyclerView.adapter = adapter
         binding.repositoriesRecyclerView.layoutManager = LinearLayoutManager(
@@ -87,21 +113,36 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
             LinearLayoutManager.VERTICAL,
             false
         )
-        adapter.addAll(repositories.map { RepoItem(it, mediaType, ::onRepositoryRemoved) })
+        adapter.update(repositories.map { RepoItem(it, mediaType, ::onRepositoryRemoved) })
+        updateEmptyState()
 
-        binding.repositoryInput.hint = when (mediaType) {
+        binding.repositoryInputLayout.hint = when (mediaType) {
             MediaType.ANIME -> getString(R.string.anime_add_repository)
             MediaType.MANGA -> getString(R.string.manga_add_repository)
             MediaType.NOVEL -> getString(R.string.novel_add_repository)
         }
 
+        ViewCompat.setOnApplyWindowInsetsListener(binding.root) { _, insets ->
+            val ime = insets.getInsets(WindowInsetsCompat.Type.ime())
+            val nav = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            binding.addRepoContainer.updatePadding(
+                bottom = maxOf(ime.bottom, nav.bottom) + 24.toPx
+            )
+            insets
+        }
+
+        binding.repositoryInput.doOnTextChanged { _, _, _, _ ->
+            binding.repositoryInputLayout.error = null
+            binding.repositoryInputLayout.isErrorEnabled = false
+        }
+
         binding.addButton.setOnClickListener {
-            val input = binding.repositoryInput.text.toString()
+            val input = binding.repositoryInput.text?.toString().orEmpty()
             val error = isValidUrl(input)
             if (error == null) {
                 acceptUrl(input)
             } else {
-                binding.repositoryInput.error = error
+                binding.repositoryInputLayout.error = error
             }
         }
 
@@ -113,19 +154,25 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
             if (action == EditorInfo.IME_ACTION_DONE ||
                 (keyEvent?.action == KeyEvent.ACTION_UP && keyEvent.keyCode == KeyEvent.KEYCODE_ENTER)
             ) {
-                val url = textView.text.toString()
+                val url = textView.text?.toString().orEmpty()
                 if (url.isNotBlank()) {
                     val error = isValidUrl(url)
                     if (error == null) {
                         acceptUrl(url)
                         return@setOnEditorActionListener true
                     } else {
-                        binding.repositoryInput.error = error
+                        binding.repositoryInputLayout.error = error
                     }
                 }
             }
             false
         }
+    }
+
+    private fun updateEmptyState() {
+        val hasRepos = repositories.isNotEmpty()
+        binding.emptyRepositoriesText.isVisible = !hasRepos
+        binding.repositoriesRecyclerView.isVisible = hasRepos
     }
 
     private fun acceptUrl(url: String) {
@@ -245,6 +292,7 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
         onRepositoryRemoved?.invoke(url, mediaType)
         repositories.remove(url)
         adapter.update(repositories.map { RepoItem(it, mediaType, ::onRepositoryRemoved) })
+        updateEmptyState()
     }
 
     override fun onDestroyView() {

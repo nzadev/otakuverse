@@ -9,6 +9,8 @@ import android.view.ViewGroup
 import android.widget.AutoCompleteTextView
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.updateLayoutParams
 import androidx.fragment.app.Fragment
 import androidx.viewpager2.adapter.FragmentStateAdapter
@@ -204,9 +206,14 @@ class ExtensionsActivity : AppCompatActivity() {
                 show()
             }
         }
-        binding.settingsContainer.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            topMargin = statusBarHeight
-            bottomMargin = navBarHeight
+        ViewCompat.setOnApplyWindowInsetsListener(binding.settingsContainer) { v, insets ->
+            val status = insets.getInsets(WindowInsetsCompat.Type.statusBars())
+            val nav = insets.getInsets(WindowInsetsCompat.Type.navigationBars())
+            v.updateLayoutParams<ViewGroup.MarginLayoutParams> {
+                topMargin = status.top
+                bottomMargin = nav.bottom
+            }
+            insets
         }
     }
 
