@@ -1,20 +1,20 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:locale="en-rUS">
 
-    <string name="repo" translatable="false">AsrOfficialDev/ReDantotsu</string>
-    <string name="preference_file_key" translatable="false">dantotsuprefs</string>
+    <string name="repo" translatable="false">nzadev/otakuverse</string>
+    <string name="preference_file_key" translatable="false">otakuverseprefs</string>
 
     <string name="app_name" translatable="false">OtakuVerse</string>
-    <string name="slogan">All-in-One Anime, Manga &amp; Novel Client • Powered by ReDantotsu</string>
+    <string name="slogan">All-in-One Anime, Manga &amp; Novel Client</string>
 
     <string name="login">Login</string>
     <string name="logout">Logout</string>
 
-    <string name="dantotsu" translatable="false">https://dantotsu.app/</string>
-    <string name="discord" translatable="false">https://discord.gg/fYEJmDsDz9</string>
-    <string name="github" translatable="false">https://github.com/AsrOfficialDev/ReDantotsu</string>
-    <string name="telegram" translatable="false" tools:ignore="Typos">https://t.me/redantotsu</string>
-    <string name="coffee" translatable="false">https://patreon.com/AsrOfficialDev</string>
-    <string name="support_me">Support me</string>
+    <string name="dantotsu" translatable="false">https://github.com/nzadev/otakuverse</string>
+    <string name="discord" translatable="false">https://github.com/nzadev/otakuverse</string>
+    <string name="github" translatable="false">https://github.com/nzadev/otakuverse</string>
+    <string name="telegram" translatable="false" tools:ignore="Typos">https://github.com/nzadev/otakuverse</string>
+    <string name="coffee" translatable="false">https://github.com/nzadev/otakuverse</string>
+    <string name="support_me">OtakuVerse</string>
 
     <string name="anilist_link">https://anilist.co/user/%1$s/</string>
     <string name="myanilist_link">https://myanimelist.net/profile/%1$s/</string>
