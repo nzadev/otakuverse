@@ -19,13 +19,10 @@ import ani.dantotsu.R
 import ani.dantotsu.databinding.ActivityExtensionsBinding
 import ani.dantotsu.initActivity
 import ani.dantotsu.media.MediaType
-import ani.dantotsu.navBarHeight
-import ani.dantotsu.others.AndroidBug5497Workaround
 import ani.dantotsu.others.LanguageMapper
 import ani.dantotsu.parsers.ParserTestActivity
 import ani.dantotsu.settings.saving.PrefManager
 import ani.dantotsu.settings.saving.PrefName
-import ani.dantotsu.statusBarHeight
 import ani.dantotsu.themes.ThemeManager
 import ani.dantotsu.util.customAlertDialog
 import androidx.lifecycle.lifecycleScope
@@ -64,22 +61,6 @@ class ExtensionsActivity : AppCompatActivity() {
                 novelManager.findAvailableExtensions()
             }
         }
-        AndroidBug5497Workaround.assistActivity(this) {
-            if (it) {
-                binding.searchView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                    bottomMargin = statusBarHeight
-                }
-            } else {
-                binding.searchView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-                    bottomMargin = statusBarHeight + navBarHeight
-                }
-            }
-        }
-
-        binding.searchView.updateLayoutParams<ViewGroup.MarginLayoutParams> {
-            bottomMargin = statusBarHeight + navBarHeight
-        }
-
         binding.testButton.setOnClickListener {
             ContextCompat.startActivity(
                 this,
@@ -120,9 +101,6 @@ class ExtensionsActivity : AppCompatActivity() {
                     if (tab.text?.contains("Installed") == true) binding.languageselect.visibility =
                         View.GONE
                     else binding.languageselect.visibility = View.VISIBLE
-                    viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
-                        height = ViewGroup.LayoutParams.MATCH_PARENT
-                    }
 
                     if (tab.text?.contains("Anime") == true) {
                         generateRepositoryButton(MediaType.ANIME)
@@ -136,16 +114,10 @@ class ExtensionsActivity : AppCompatActivity() {
                 }
 
                 override fun onTabUnselected(tab: TabLayout.Tab) {
-                    viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
-                        height = ViewGroup.LayoutParams.MATCH_PARENT
-                    }
                     tabLayout.clearFocus()
                 }
 
                 override fun onTabReselected(tab: TabLayout.Tab) {
-                    viewPager.updateLayoutParams<ViewGroup.LayoutParams> {
-                        height = ViewGroup.LayoutParams.MATCH_PARENT
-                    }
                     // Do nothing
                 }
             }
