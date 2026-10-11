@@ -7,8 +7,10 @@ echo "========================================="
 export PATH=/data/data/com.termux/files/usr/bin:$PATH
 
 echo "1. Mematikan proses lama (jika ada)..."
-killall node 2>/dev/null
-killall cloudflared 2>/dev/null
+pkill -9 -f "node server.js" 2>/dev/null || true
+pkill -9 -f "cloudflared" 2>/dev/null || true
+killall node 2>/dev/null || true
+killall cloudflared 2>/dev/null || true
 sleep 1
 
 echo "2. Menjalankan OtakuVerse..."
