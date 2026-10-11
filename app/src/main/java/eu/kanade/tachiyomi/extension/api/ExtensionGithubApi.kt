@@ -429,9 +429,13 @@ internal class ExtensionGithubApi {
                 val code = obj.optString("versionCode", "0").toLongOrNull()
                     ?: obj.optLong("versionCode", obj.optLong("code", 0L))
 
-                val libStr = obj.optString("extensionLib", version)
-                val cleanLib = libStr.removePrefix("v").substringBeforeLast('.')
-                val libVersion = cleanLib.toDoubleOrNull() ?: libStr.toDoubleOrNull() ?: 0.0
+                val explicitLib = obj.optString("extensionLib", "")
+                val libVersion = if (explicitLib.isNotBlank()) {
+                    explicitLib.removePrefix("v").toDoubleOrNull() ?: 0.0
+                } else {
+                    val cleanLib = version.removePrefix("v").substringBeforeLast('.')
+                    cleanLib.toDoubleOrNull() ?: version.removePrefix("v").toDoubleOrNull() ?: 0.0
+                }
                 if (libVersion < ExtensionLoader.MANGA_LIB_VERSION_MIN || libVersion > ExtensionLoader.MANGA_LIB_VERSION_MAX) {
                     continue
                 }
@@ -686,5 +690,5 @@ private data class ExtensionSourceJsonObject(
 
 private fun ExtensionJsonObject.extractLibVersion(): Double {
     val clean = version.removePrefix("v").substringBeforeLast('.')
-    return clean.toDoubleOrNull() ?: 0.0
+    return clean.toDoubleOrNull() ?: version.removePrefix("v").toDoubleOrNull() ?: 0.0
 }

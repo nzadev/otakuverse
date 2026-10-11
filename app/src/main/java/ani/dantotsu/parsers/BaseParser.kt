@@ -62,81 +62,121 @@ abstract class BaseParser {
      *
      * Isn't necessary to override, but recommended, if you want to improve auto search results
      * **/
+    private fun sanitizeTitle(title: String): String {
+        return title.lowercase()
+            .replace(Regex("(?i)\\[[^\\]]*\\]"), " ")
+            .replace(Regex("(?i)\\([^\\)]*\\)"), " ")
+            .replace(Regex("(?i)\\b(sub\\s*indo|subtitle\\s*indonesia|bahasa\\s*indonesia|indonesia|indo|batch|tamat|completed|ongoing)\\b"), " ")
+            .replace(Regex("[^a-zA-Z0-9\\s]"), " ")
+            .replace(Regex("\\s+"), " ")
+            .trim()
+    }
+
+    private fun computeMatchScore(resultName: String, targetTitle: String): Int {
+        val sRes = sanitizeTitle(resultName)
+        val sTarget = sanitizeTitle(targetTitle)
+        if (sRes.isEmpty() || sTarget.isEmpty()) return 0
+        if (sRes == sTarget) return 100
+        val tokenSet = FuzzySearch.tokenSetRatio(sRes, sTarget)
+        val weighted = FuzzySearch.weightedRatio(sRes, sTarget)
+        val ratio = FuzzySearch.ratio(sRes, sTarget)
+        return maxOf(tokenSet, weighted, ratio)
+    }
+
+    private fun bestScoreAgainstTargets(resultName: String, targets: List<String>): Int {
+        var maxScore = 0
+        for (target in targets) {
+            val score = computeMatchScore(resultName, target)
+            if (score > maxScore) maxScore = score
+            if (maxScore >= 100) break
+        }
+        return maxScore
+    }
+
     open suspend fun autoSearch(mediaObj: Media): ShowResponse? {
         (this as? DynamicMangaParser)?.let { ext ->
             mediaObj.selected?.langIndex?.let {
                 ext.sourceLanguage = it
             }
         }
+
+        val targetTitles = mutableListOf<String>()
+        val mainName = mediaObj.mainName().trim()
+        if (mainName.isNotEmpty()) targetTitles.add(mainName)
+        val romaji = mediaObj.nameRomaji.trim()
+        if (romaji.isNotEmpty() && !targetTitles.any { it.equals(romaji, ignoreCase = true) }) {
+            targetTitles.add(romaji)
+        }
+        val mangaName = mediaObj.mangaName().trim()
+        if (mangaName.isNotEmpty() && !targetTitles.any { it.equals(mangaName, ignoreCase = true) }) {
+            targetTitles.add(mangaName)
+        }
+        mediaObj.synonyms.forEach { syn ->
+            val cleanSyn = syn.trim()
+            if (cleanSyn.isNotEmpty() && !targetTitles.any { it.equals(cleanSyn, ignoreCase = true) }) {
+                targetTitles.add(cleanSyn)
+            }
+        }
+
         var response: ShowResponse? = loadSavedShowResponse(mediaObj.id)
         if (response != null && this !is OfflineMangaParser && this !is OfflineAnimeParser) {
-            saveShowResponse(mediaObj.id, response, true)
-        } else {
-            setUserText("Searching : ${mediaObj.mainName()}")
-            Logger.log("Searching : ${mediaObj.mainName()}")
-            val results = search(mediaObj.mainName())
-            //log all results
-            results.forEach {
-                Logger.log("Result: ${it.name}")
-            }
-            val sortedResults = if (results.isNotEmpty()) {
-                results.sortedByDescending {
-                    FuzzySearch.ratio(
-                        it.name.lowercase(),
-                        mediaObj.mainName().lowercase()
-                    )
-                }
+            val savedScore = bestScoreAgainstTargets(response.name, targetTitles)
+            if (savedScore >= 60) {
+                saveShowResponse(mediaObj.id, response, true)
+                return response
             } else {
+                Logger.log("Saved response '${response.name}' score ($savedScore) too low for ${mediaObj.mainName()}, invalidating cache.")
+                response = null
+            }
+        }
+
+        var bestMatch: ShowResponse? = null
+        var highestScore = 0
+
+        val queriesToTry = mutableListOf<String>()
+        if (mainName.isNotEmpty()) queriesToTry.add(mainName)
+        if (romaji.isNotEmpty() && !queriesToTry.any { it.equals(romaji, ignoreCase = true) }) queriesToTry.add(romaji)
+        if (mangaName.isNotEmpty() && !queriesToTry.any { it.equals(mangaName, ignoreCase = true) }) queriesToTry.add(mangaName)
+        for (syn in mediaObj.synonyms) {
+            val cleanSyn = syn.trim()
+            if (cleanSyn.isNotEmpty() && !queriesToTry.any { it.equals(cleanSyn, ignoreCase = true) }) {
+                queriesToTry.add(cleanSyn)
+                if (queriesToTry.size >= 5) break
+            }
+        }
+
+        for (query in queriesToTry) {
+            setUserText("Searching : $query")
+            Logger.log("Searching : $query")
+            val results = try {
+                search(query)
+            } catch (e: Exception) {
+                Logger.log("Search error for $query: ${e.message}")
                 emptyList()
             }
-            response = sortedResults.firstOrNull()
 
-            if (response == null || FuzzySearch.ratio(
-                    response.name.lowercase(),
-                    mediaObj.mainName().lowercase()
-                ) < 100
-            ) {
-                setUserText("Searching : ${mediaObj.nameRomaji}")
-                Logger.log("Searching : ${mediaObj.nameRomaji}")
-                val romajiResults = search(mediaObj.nameRomaji)
-                val sortedRomajiResults = if (romajiResults.isNotEmpty()) {
-                    romajiResults.sortedByDescending {
-                        FuzzySearch.ratio(
-                            it.name.lowercase(),
-                            mediaObj.nameRomaji.lowercase()
-                        )
-                    }
-                } else {
-                    emptyList()
+            for (res in results) {
+                val score = bestScoreAgainstTargets(res.name, targetTitles)
+                Logger.log("Result: ${res.name} (score: $score)")
+                if (score > highestScore) {
+                    highestScore = score
+                    bestMatch = res
                 }
-                val closestRomaji = sortedRomajiResults.firstOrNull()
-                Logger.log("Closest match from RomajiResults: ${closestRomaji?.name ?: "None"}")
-
-                response = if (response == null) {
-                    Logger.log("No exact match found in results. Using closest match from RomajiResults.")
-                    closestRomaji
-                } else {
-                    val romajiRatio = FuzzySearch.ratio(
-                        closestRomaji?.name?.lowercase() ?: "",
-                        mediaObj.nameRomaji.lowercase()
-                    )
-                    val mainNameRatio = FuzzySearch.ratio(
-                        response.name.lowercase(),
-                        mediaObj.mainName().lowercase()
-                    )
-                    Logger.log("Fuzzy ratio for closest match in results: $mainNameRatio for ${response.name.lowercase()}")
-                    Logger.log("Fuzzy ratio for closest match in RomajiResults: $romajiRatio for ${closestRomaji?.name?.lowercase() ?: "None"}")
-
-                    if (romajiRatio > mainNameRatio) {
-                        Logger.log("RomajiResults has a closer match. Replacing response.")
-                        closestRomaji
-                    } else {
-                        Logger.log("Results has a closer or equal match. Keeping existing response.")
-                        response
-                    }
-                }
-
             }
+
+            if (highestScore >= 90) {
+                break
+            }
+        }
+
+        response = if (highestScore >= 70) {
+            bestMatch
+        } else {
+            Logger.log("Highest score for ${mediaObj.mainName()} was $highestScore (< 70). Rejecting auto-match.")
+            null
+        }
+
+        if (response != null) {
             saveShowResponse(mediaObj.id, response)
         }
         return response
