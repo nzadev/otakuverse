@@ -95,6 +95,21 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
             MediaType.NOVEL -> getString(R.string.novel_add_repository)
         }
 
+        binding.btnQuickAddCommunityRepo.text = when (mediaType) {
+            MediaType.ANIME -> "⚡ 1-Klik Pasang Repo Anime (Aniyomi)"
+            MediaType.MANGA -> "⚡ 1-Klik Pasang Repo Manga (Keiyoushi)"
+            MediaType.NOVEL -> "⚡ 1-Klik Pasang Repo Novel (LNReader)"
+        }
+
+        binding.btnQuickAddCommunityRepo.setOnClickListener {
+            val defaultUrl = when (mediaType) {
+                MediaType.ANIME -> "https://raw.githubusercontent.com/aniyomiorg/aniyomi-extensions/repo/index.min.json"
+                MediaType.MANGA -> "https://raw.githubusercontent.com/keiyoushi/extensions/repo/index.min.json"
+                MediaType.NOVEL -> "https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json"
+            }
+            acceptUrl(defaultUrl)
+        }
+
         binding.addButton.setOnClickListener {
             val input = binding.repositoryInput.text.toString()
             val error = isValidUrl(input)
