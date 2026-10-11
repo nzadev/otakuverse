@@ -18,7 +18,5 @@ data class LnReaderPlugin(
 ) : Serializable {
     companion object {
         private const val serialVersionUID = 1L
-        const val PLUGIN_INDEX_URL =
-            "https://raw.githubusercontent.com/LNReader/lnreader-plugins/plugins/v3.0.0/.dist/plugins.min.json"
     }
 }

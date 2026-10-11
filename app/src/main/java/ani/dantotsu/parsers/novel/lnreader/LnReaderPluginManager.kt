@@ -1,6 +1,8 @@
 package ani.dantotsu.parsers.novel.lnreader
 
 import android.content.Context
+import ani.dantotsu.settings.saving.PrefManager
+import ani.dantotsu.settings.saving.PrefName
 import ani.dantotsu.util.Logger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -41,30 +43,38 @@ class LnReaderPluginManager(private val context: Context) {
      * Call from a coroutine (IO dispatcher).
      */
     suspend fun fetchAvailablePlugins() = withContext(Dispatchers.IO) {
-        try {
-            val json = URL(LnReaderPlugin.PLUGIN_INDEX_URL).readText()
-            val arr = JSONArray(json)
-            val plugins = mutableListOf<LnReaderPlugin>()
-            for (i in 0 until arr.length()) {
-                val obj = arr.getJSONObject(i)
-                plugins.add(
-                    LnReaderPlugin(
-                        id = obj.getString("id"),
-                        name = obj.getString("name"),
-                        site = obj.optString("site", ""),
-                        lang = obj.getString("lang"),
-                        version = obj.getString("version"),
-                        url = obj.getString("url"),
-                        iconUrl = obj.optString("iconUrl", ""),
-                        customCSS = obj.optString("customCSS").takeIf { it.isNotBlank() }
-                    )
-                )
-            }
-            _availablePlugins.value = plugins
+        val repos = PrefManager.getVal<Set<String>>(PrefName.NovelExtensionRepos)
+        if (repos.isEmpty()) {
+            _availablePlugins.value = emptyList()
             refreshInstalled()
-        } catch (e: Exception) {
-            Logger.log("LnReaderPluginManager: failed to fetch index — ${e.message}")
+            return@withContext
         }
+        val plugins = mutableListOf<LnReaderPlugin>()
+        for (repoUrl in repos) {
+            try {
+                val json = URL(repoUrl).readText()
+                val arr = JSONArray(json)
+                for (i in 0 until arr.length()) {
+                    val obj = arr.getJSONObject(i)
+                    plugins.add(
+                        LnReaderPlugin(
+                            id = obj.getString("id"),
+                            name = obj.getString("name"),
+                            site = obj.optString("site", ""),
+                            lang = obj.getString("lang"),
+                            version = obj.getString("version"),
+                            url = obj.getString("url"),
+                            iconUrl = obj.optString("iconUrl", ""),
+                            customCSS = obj.optString("customCSS").takeIf { it.isNotBlank() }
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                Logger.log("LnReaderPluginManager: failed to fetch index from $repoUrl — ${e.message}")
+            }
+        }
+        _availablePlugins.value = plugins
+        refreshInstalled()
     }
 
     // ── Install / Uninstall ───────────────────────────────────────────────────
