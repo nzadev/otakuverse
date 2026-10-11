@@ -105,6 +105,7 @@ class AnimeExtensionPagingSource(
         val langFilter =
             if (lang != "all") filteredExtensions.filter { it.lang == lang } else filteredExtensions
         val filternfsw = if (isNsfwEnabled) langFilter else langFilter.filterNot { it.isNsfw }
+        android.util.Log.i("OtakuVerse", "AnimeExtensionPagingSource load: availableFlow=${availableExtensionsFlow.size}, installedFlow=${installedExtensionsFlow.size}, filtered=${filternfsw.size}, lang=$lang, nsfw=$isNsfwEnabled")
         return try {
             val sublist = filternfsw.subList(
                 fromIndex = position,

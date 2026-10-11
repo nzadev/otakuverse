@@ -180,6 +180,7 @@
             android:parentActivityName=".MainActivity" />
         <activity
             android:name=".settings.ExtensionsActivity"
+            android:exported="true"
             android:parentActivityName=".MainActivity"
             android:windowSoftInputMode="adjustResize|stateHidden" />
         <activity

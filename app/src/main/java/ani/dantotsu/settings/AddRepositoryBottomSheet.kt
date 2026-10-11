@@ -146,7 +146,13 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
             return null
         }
 
-        if (mediaType == MediaType.ANIME && (trimmed.equals("anime", ignoreCase = true) || trimmed.equals("aniyomi", ignoreCase = true) || trimmed.equals("yuzono", ignoreCase = true))) {
+        if (mediaType == MediaType.ANIME && (
+            trimmed.equals("anime", ignoreCase = true) ||
+            trimmed.equals("aniyomi", ignoreCase = true) ||
+            trimmed.equals("yuzono", ignoreCase = true) ||
+            trimmed.contains("aniyomi", ignoreCase = true) ||
+            trimmed.contains("yuzono", ignoreCase = true)
+        )) {
             return null
         }
 
@@ -183,7 +189,13 @@ class AddRepositoryBottomSheet : BottomSheetDialogFragment() {
     private fun getRepoUrl(input: String): String {
         val trimmed = input.trim()
         if (mediaType == MediaType.ANIME) {
-            if (trimmed.equals("anime", ignoreCase = true) || trimmed.equals("aniyomi", ignoreCase = true) || trimmed.equals("yuzono", ignoreCase = true)) {
+            if (trimmed.equals("anime", ignoreCase = true) ||
+                trimmed.equals("aniyomi", ignoreCase = true) ||
+                trimmed.equals("yuzono", ignoreCase = true) ||
+                trimmed.contains("aniyomiorg/aniyomi-extensions", ignoreCase = true) ||
+                trimmed.contains("aniyomi-extensions", ignoreCase = true) ||
+                trimmed.contains("yuzono/anime-repo", ignoreCase = true)
+            ) {
                 return "https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json"
             }
         }

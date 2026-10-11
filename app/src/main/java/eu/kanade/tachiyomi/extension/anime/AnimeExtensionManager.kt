@@ -121,11 +121,13 @@ class AnimeExtensionManager(
         val extensions: List<AnimeExtension.Available> = try {
             api.findAnimeExtensions()
         } catch (e: Exception) {
+            android.util.Log.e("OtakuVerse", "Error in findAvailableExtensions: ${e.message}", e)
             Logger.log(e)
             withUIContext { snackString("Failed to get extensions list") }
             emptyList()
         }
 
+        android.util.Log.i("OtakuVerse", "findAvailableExtensions got ${extensions.size} anime extensions")
         enableAdditionalSubLanguages(extensions)
 
         _availableAnimeExtensionsFlow.value = extensions

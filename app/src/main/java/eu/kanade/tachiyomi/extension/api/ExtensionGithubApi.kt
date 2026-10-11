@@ -113,10 +113,31 @@ internal class ExtensionGithubApi {
             val extensions: ArrayList<AnimeExtension.Available> = arrayListOf()
             val seenPackages = mutableSetOf<String>()
 
-            val repos =
+            val configuredRepos =
                 PrefManager.getVal<Set<String>>(PrefName.AnimeExtensionRepos).toMutableList()
 
-            repos.forEach {
+            val repos = mutableListOf<String>()
+            configuredRepos.forEach { repo ->
+                if (repo.contains("aniyomiorg/aniyomi-extensions") || repo.contains("aniyomi-extensions")) {
+                    repos.add("https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json")
+                    repos.add(repo)
+                } else {
+                    repos.add(repo)
+                }
+            }
+            if (repos.isEmpty()) {
+                repos.add("https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json")
+            }
+            val distinctRepos = repos.distinct()
+
+            if (configuredRepos.isEmpty() || configuredRepos.any { it.contains("aniyomi-extensions") }) {
+                val updatedSet = configuredRepos.toMutableSet()
+                updatedSet.add("https://raw.githubusercontent.com/yuzono/anime-repo/repo/index.min.json")
+                PrefManager.setVal(PrefName.AnimeExtensionRepos, updatedSet)
+            }
+
+            android.util.Log.i("OtakuVerse", "findAnimeExtensions started with repos: $distinctRepos")
+            distinctRepos.forEach {
                 val repoUrl = if (it.contains("index.min.json")) {
                     it
                 } else {
@@ -128,7 +149,7 @@ internal class ExtensionGithubApi {
                             .newCall(GET(repoUrl))
                             .awaitSuccess()
                     } catch (e: Throwable) {
-                        Logger.log("Failed to get repo: $repoUrl")
+                        android.util.Log.w("OtakuVerse", "Failed to get repo $repoUrl: ${e.message}")
                         val altUrl = when {
                             repoUrl.contains("/repo/index.min.json") -> repoUrl.replace("/repo/index.min.json", "/main/index.min.json")
                             repoUrl.contains("/main/index.min.json") -> repoUrl.replace("/main/index.min.json", "/repo/index.min.json")
@@ -150,12 +171,17 @@ internal class ExtensionGithubApi {
                     }
 
                     val bodyString = response.body.string()
+                    android.util.Log.i("OtakuVerse", "Fetched $repoUrl, length=${bodyString.length}")
                     val repoExtensions = try {
-                        json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
+                        val parsed = json.decodeFromString<List<ExtensionJsonObject>>(bodyString)
                             .toAnimeExtensions(it)
+                        android.util.Log.i("OtakuVerse", "decodeFromString succeeded: ${parsed.size} anime extensions")
+                        parsed
                     } catch (e: Throwable) {
-                        Logger.log("Failed to parse anime extensions with json serializer, falling back to manual: ${e.message}")
-                        parseAnimeExtensionsManually(bodyString, it)
+                        android.util.Log.e("OtakuVerse", "json serializer failed, falling back to manual: ${e.message}")
+                        val manual = parseAnimeExtensionsManually(bodyString, it)
+                        android.util.Log.i("OtakuVerse", "manual parse got: ${manual.size} anime extensions")
+                        manual
                     }
 
                     val uniqueExtensions = repoExtensions.filter { ext ->
@@ -170,12 +196,14 @@ internal class ExtensionGithubApi {
                     }
 
                     extensions.addAll(uniqueExtensions)
+                    android.util.Log.i("OtakuVerse", "Total extensions so far: ${extensions.size}")
                 } catch (e: Throwable) {
-                    Logger.log("Failed to get extensions from GitHub")
+                    android.util.Log.e("OtakuVerse", "Failed to get extensions from GitHub: ${e.message}", e)
                     Logger.log(e)
                 }
             }
 
+            android.util.Log.i("OtakuVerse", "findAnimeExtensions returning ${extensions.size} extensions")
             extensions
         }
     }
@@ -246,7 +274,8 @@ internal class ExtensionGithubApi {
     }
 
     fun getAnimeApkUrl(extension: AnimeExtension.Available): String {
-        return "${extension.repository.removeSuffix("index.min.json")}/apk/${extension.apkName}"
+        val base = extension.repository.removeSuffix("/").removeSuffix("index.min.json").removeSuffix("/")
+        return "$base/apk/${extension.apkName}"
     }
 
     private fun List<ExtensionSourceJsonObject>.toMangaExtensionSources(): List<AvailableMangaSources> {
