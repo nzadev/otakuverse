@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#B30F0F13" /> <!-- Dark glass, ~70% opacity -->
+    <corners android:radius="16dp" /> <!-- Rounded pill corner radius -->
+    <stroke
+        android:width="1dp"
+        android:color="#26FFFFFF" /> <!-- Subtle white border to create glassmorphic edge -->
+</shape>

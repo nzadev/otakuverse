@@ -1,0 +1,3 @@
+User-agent: *
+Allow: /
+Sitemap: https://asrofficialdev.github.io/ReDantotsu/sitemap.xml
