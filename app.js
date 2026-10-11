@@ -475,7 +475,7 @@ function normalizeAnime(item) {
       title: ep.title || `Episode ${ep.number || ep.num || (idx + 1)}`,
       duration: ep.duration || '24m',
       url: ep.url || item.url || '',
-      stream_url: ep.stream_url || ep.video || `/media/anime_${item.id}.mp4`,
+      stream_url: ep.stream_url || ep.video || '',
       trailerId: ep.trailerId || item.trailerId
     }));
   } else if (Array.isArray(item.episodesList)) {
@@ -489,7 +489,7 @@ function normalizeAnime(item) {
         title: `Episode ${i}`,
         duration: '24m',
         url: item.url || '',
-        stream_url: `/media/sample.mp4`,
+        stream_url: '',
         trailerId: item.trailerId
       });
     }
@@ -1229,18 +1229,24 @@ async function openDownloadModal(anime, epIndex) {
     epSource = 'otakudesu';
   } else if (!fetchUrl && anime.id) {
     epSource = 'anilist';
-    fetchUrl = `/media/anime_${anime.id}.mp4`;
+    fetchUrl = '';
   }
 
   try {
     let streams = [];
-    if (epSource === 'anilist') {
-      streams = [{ resolution: '1080p', url: fetchUrl }];
-    } else {
+    if (!fetchUrl && epSource === 'anilist') {
+      const searchRes = await fetch(`/api/scrapers/streams?source=samehadaku&title=${encodeURIComponent(anime.title || '')}&episode=${ep.number || 1}`);
+      const searchData = await searchRes.json();
+      if (searchData.success && Array.isArray(searchData.streams)) {
+        streams = searchData.streams
+          .filter(s => s.url && !s.url.startsWith('/media/'))
+          .map(s => ({ resolution: s.quality || 'HD', url: s.url }));
+      }
+    } else if (fetchUrl) {
       const res = await fetch(`/api/scrapers/stream-proxy?source=${epSource}&url=${encodeURIComponent(fetchUrl)}`);
       const data = await res.json();
       if (data.success && data.streams) {
-        streams = data.streams;
+        streams = data.streams.filter(s => s.url && !s.url.startsWith('/media/'));
       } else {
         throw new Error(data.error || 'No streams found');
       }
@@ -1320,7 +1326,7 @@ async function openPlayer(anime, epIndex = 0) {
     number: epIndex + 1,
     title: `Episode ${epIndex + 1}`,
     url: anime.url || '',
-    stream_url: `/media/anime_${anime.id}.mp4`
+    stream_url: ''
   };
 
   DOM.playerModalTitle.textContent = anime.title;
@@ -1571,8 +1577,12 @@ function loadNativeVideo(srcUrl) {
   DOM.mainVideoPlayer.classList.remove('hidden');
 
   if (DOM.btnDownloadStream) {
-    DOM.btnDownloadStream.href = srcUrl;
-    DOM.btnDownloadStream.classList.remove('hidden');
+    if (srcUrl && srcUrl.startsWith('http')) {
+      DOM.btnDownloadStream.href = srcUrl;
+      DOM.btnDownloadStream.classList.remove('hidden');
+    } else {
+      DOM.btnDownloadStream.classList.add('hidden');
+    }
   }
 
   DOM.mainVideoPlayer.src = srcUrl;
@@ -2669,9 +2679,14 @@ function setupEventListeners() {
     } else {
       const episodes = state.currentAnime.episodes || [];
       const currentEp = episodes[state.currentEpIndex];
-      const fallbackUrl = currentEp ? currentEp.stream_url : `/media/anime_${state.currentAnime.id}.mp4`;
-      loadNativeVideo(streamUrl || fallbackUrl);
-      showToast(`⚡ Beralih ke server: ${serverName}`);
+      const fallbackUrl = currentEp ? (currentEp.stream_url || '') : '';
+      const targetUrl = streamUrl || fallbackUrl;
+      if (targetUrl && !targetUrl.startsWith('/media/')) {
+        loadNativeVideo(targetUrl);
+        showToast(`⚡ Beralih ke server: ${serverName}`);
+      } else {
+        showToast(`⚠️ Server ${serverName} tidak memiliki link aktif.`);
+      }
     }
   });
 
