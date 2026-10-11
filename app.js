@@ -1551,20 +1551,45 @@ async function openPlayer(anime, epIndex = 0) {
         showToast(`⚡ Memutar resolusi ${bestStream.quality || 'HD'}: ${bestStream.server}`);
       }
     } else {
-      if (anime.trailer_url) {
-        DOM.serverSelect.innerHTML = `<option value="trailer" data-url="${anime.trailer_url}" data-type="iframe">🎬 Trailer Resmi (YT)</option>`;
-        loadIframeStream(anime.trailer_url, 'Trailer Resmi');
-        showToast('⚠️ Stream episode belum rilis, memutar trailer resmi.');
-      } else {
-        showToast('⚠️ Tidak ada server video aktif yang ditemukan untuk episode ini.');
-        closePlayer();
-      }
+      showInPlayerError(anime, epIndex, 'Stream episode ini sedang dalam antrean encoding fansub.');
     }
   } catch (e) {
     console.warn('Gagal memuat stream scraper:', e);
-    showToast('⚠️ Gagal terhubung ke server video.');
-    closePlayer();
+    showInPlayerError(anime, epIndex, 'Gagal terhubung ke mirror stream fansub.');
   }
+}
+
+function showInPlayerError(anime, epIndex, message = '') {
+  DOM.videoContainer.classList.remove('is-buffering');
+  const ph = document.getElementById('externalPlaceholder');
+  if (ph) ph.remove();
+
+  if (anime && anime.trailer_url) {
+    DOM.serverSelect.innerHTML = `<option value="trailer" data-url="${anime.trailer_url}" data-type="iframe">🎬 Trailer Resmi (YT)</option>`;
+    loadIframeStream(anime.trailer_url, 'Trailer Resmi');
+    showToast('🎬 Stream belum aktif, memutar trailer resmi YouTube.');
+    return;
+  }
+
+  DOM.mainVideoPlayer.pause();
+  DOM.mainVideoPlayer.classList.add('hidden');
+  DOM.trailerPlayerIframe.classList.add('hidden');
+  DOM.videoContainer.classList.add('in-iframe-mode');
+  DOM.centerPlayButton.style.display = 'none';
+
+  const fallbackBg = (anime && (anime.backdrop || anime.poster)) || '';
+  DOM.videoContainer.style.background = fallbackBg ? `url('${fallbackBg}') center/cover no-repeat` : '#0f172a';
+  DOM.videoContainer.insertAdjacentHTML('beforeend', `
+    <div id="externalPlaceholder" style="position: absolute; inset: 0; background: rgba(15,23,42,0.92); backdrop-filter: blur(8px); display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 10; padding: 24px; text-align: center;">
+      <div style="font-size: 2.8rem; margin-bottom: 12px;">📡</div>
+      <div style="font-size: 1.2rem; font-weight: 700; color: #fff; margin-bottom: 6px;">Stream Episode Sedang Disiapkan</div>
+      <div style="font-size: 0.85rem; color: #94a3b8; max-width: 400px; margin-bottom: 18px; line-height: 1.4;">${escapeHtml(message || 'Server video fansub lokal belum merilis link episode ini.')}</div>
+      <div style="display: flex; gap: 10px; flex-wrap: wrap; justify-content: center;">
+        <button type="button" class="cta-btn primary-cta" style="padding: 8px 16px; font-size: 0.85rem;" onclick="openPlayer(state.currentAnime, ${epIndex})">🔄 Muat Ulang</button>
+        <button type="button" class="cta-btn secondary-cta" style="padding: 8px 16px; font-size: 0.85rem;" onclick="closePlayer()">✕ Kembali ke Detail</button>
+      </div>
+    </div>
+  `);
 }
 
 function loadNativeVideo(srcUrl) {
@@ -3543,23 +3568,40 @@ setInterval(() => {
 
 async function fetchCarousels() {
   const carousels = [
-    { id: 'carouselMostRecommended', sort: 'popular', perPage: 12 }
+    { id: 'carouselTopRatedMAL', sort: 'score', perPage: 12 },
+    { id: 'carouselMostRecommended', sort: 'popular', perPage: 12 },
+    { id: 'carouselTrendingAniList', sort: 'trending', perPage: 12 },
+    { id: 'carouselTopRatedAniList', sort: 'score', perPage: 12 }
   ];
 
   for (const c of carousels) {
     try {
-      let url = `/api/anime?sort=${c.sort}&perPage=${c.perPage}`;
-      if (c.genre) url += `&genre=${c.genre}`;
-      if (c.status) url += `&status=${c.status}`;
-      
-      const res = await fetch(url);
-      if (res.ok) {
-        const json = await res.json();
-        const items = json.items || [];
+      let items = [];
+      // 1. Try backend API first
+      try {
+        let url = `/api/anime?sort=${c.sort}&perPage=${c.perPage}`;
+        const res = await fetch(url);
+        if (res.ok) {
+          const json = await res.json();
+          if (json && json.success && Array.isArray(json.items) && json.items.length > 0) {
+            items = json.items;
+          }
+        }
+      } catch (err) {}
+
+      // 2. Direct client-side AniList fallback (ensures public web / Vercel loads without local backend)
+      if (items.length === 0) {
+        const directData = await fetchAniListDirect({ page: 1, perPage: c.perPage, sort: c.sort });
+        if (directData && directData.success && Array.isArray(directData.items)) {
+          items = directData.items;
+        }
+      }
+
+      if (items.length > 0) {
         renderCarousel(c.id, items);
       }
     } catch (e) {
-      console.error(`Gagal memuat carousel ${c.id}:`, e);
+      console.warn(`Gagal memuat carousel ${c.id}:`, e);
     }
   }
 }
@@ -3576,13 +3618,16 @@ function renderCarousel(containerId, items) {
     card.tabIndex = 0;
     
     const scoreVal = anime.score ? `★ ${anime.score}` : '★ 8.5';
-    const title = escapeHtml(anime.title);
+    const epCount = anime.episodes_count || (anime.episodes ? anime.episodes.length : null);
+    const epBadge = epCount ? `${epCount} Eps` : 'Sub Indo';
+    const title = escapeHtml(anime.title || '');
     
     card.innerHTML = `
       <div class="card-poster-wrap">
-        <img src="${escapeHtml(anime.cover || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600')}" alt="${title}" class="card-poster" loading="lazy" referrerpolicy="no-referrer">
+        <img src="${escapeHtml(anime.cover || anime.poster || 'https://images.unsplash.com/photo-1578632767115-351597cf2477?w=600')}" alt="${title}" class="card-poster" loading="lazy" referrerpolicy="no-referrer">
         <div class="card-top-badges">
-          <span class="score-chip">★ ${anime.score || '8.5'}</span>
+          <span class="score-chip">${scoreVal}</span>
+          <span class="ep-chip" style="background: rgba(15,23,42,0.75); color: var(--accent-cyan); font-size: 0.68rem; font-weight: 700; padding: 2px 6px; border-radius: 4px; border: 1px solid rgba(56,189,248,0.2);">${epBadge}</span>
         </div>
       </div>
       <div class="card-body">

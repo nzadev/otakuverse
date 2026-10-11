@@ -14,7 +14,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 
-  <link rel="stylesheet" href="styles.css?v=3.9.2">
+  <link rel="stylesheet" href="styles.css?v=4.1.0">
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
@@ -409,10 +409,61 @@
         </div>
 
         <!-- Anime Cards Grid -->
-        <!-- Wibuku-style Single Clean Carousel -->
-        <div class="category-section" id="carouselMostRecommendedContainer" style="margin-bottom: 20px;">
-          <h3 class="category-title" style="font-size: 1.1rem; padding: 0 15px; margin-bottom: 10px; color: var(--accent-cyan); font-weight: 700;">✨ Rekomendasi Hari Ini</h3>
+        <!-- Wibuku & Donghive Featured Carousels -->
+        <div class="category-section" id="carouselTopRatedMALContainer">
+          <div class="carousel-header">
+            <div class="carousel-title-group">
+              <span class="carousel-source-pill mal-pill">MAL</span>
+              <h3 class="category-title">🏆 Top Rating di MyAnimeList</h3>
+            </div>
+            <div class="carousel-nav-arrows">
+              <button type="button" class="carousel-arrow-btn" onclick="document.getElementById('carouselTopRatedMAL').scrollBy({left: -340, behavior: 'smooth'})" aria-label="Geser Kiri">‹</button>
+              <button type="button" class="carousel-arrow-btn" onclick="document.getElementById('carouselTopRatedMAL').scrollBy({left: 340, behavior: 'smooth'})" aria-label="Geser Kanan">›</button>
+            </div>
+          </div>
+          <div class="horizontal-scroll-list" id="carouselTopRatedMAL"></div>
+        </div>
+
+        <div class="category-section" id="carouselMostRecommendedContainer">
+          <div class="carousel-header">
+            <div class="carousel-title-group">
+              <span class="carousel-source-pill mal-pill">MAL</span>
+              <h3 class="category-title">🌟 Paling Rekomendasi di MyAnimeList</h3>
+            </div>
+            <div class="carousel-nav-arrows">
+              <button type="button" class="carousel-arrow-btn" onclick="document.getElementById('carouselMostRecommended').scrollBy({left: -340, behavior: 'smooth'})" aria-label="Geser Kiri">‹</button>
+              <button type="button" class="carousel-arrow-btn" onclick="document.getElementById('carouselMostRecommended').scrollBy({left: 340, behavior: 'smooth'})" aria-label="Geser Kanan">›</button>
+            </div>
+          </div>
           <div class="horizontal-scroll-list" id="carouselMostRecommended"></div>
+        </div>
+
+        <div class="category-section" id="carouselTrendingAniListContainer">
+          <div class="carousel-header">
+            <div class="carousel-title-group">
+              <span class="carousel-source-pill anilist-pill">AniList</span>
+              <h3 class="category-title">🔥 Sedang Trending di AniList</h3>
+            </div>
+            <div class="carousel-nav-arrows">
+              <button type="button" class="carousel-arrow-btn" onclick="document.getElementById('carouselTrendingAniList').scrollBy({left: -340, behavior: 'smooth'})" aria-label="Geser Kiri">‹</button>
+              <button type="button" class="carousel-arrow-btn" onclick="document.getElementById('carouselTrendingAniList').scrollBy({left: 340, behavior: 'smooth'})" aria-label="Geser Kanan">›</button>
+            </div>
+          </div>
+          <div class="horizontal-scroll-list" id="carouselTrendingAniList"></div>
+        </div>
+
+        <div class="category-section" id="carouselTopRatedAniListContainer">
+          <div class="carousel-header">
+            <div class="carousel-title-group">
+              <span class="carousel-source-pill anilist-pill">AniList</span>
+              <h3 class="category-title">⭐ Top Rating di AniList</h3>
+            </div>
+            <div class="carousel-nav-arrows">
+              <button type="button" class="carousel-arrow-btn" onclick="document.getElementById('carouselTopRatedAniList').scrollBy({left: -340, behavior: 'smooth'})" aria-label="Geser Kiri">‹</button>
+              <button type="button" class="carousel-arrow-btn" onclick="document.getElementById('carouselTopRatedAniList').scrollBy({left: 340, behavior: 'smooth'})" aria-label="Geser Kanan">›</button>
+            </div>
+          </div>
+          <div class="horizontal-scroll-list" id="carouselTopRatedAniList"></div>
         </div>
 
         <!-- MAIN CATALOG -->
@@ -1045,6 +1096,6 @@
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
 
-  <script src="app.js?v=4.0.0"></script>
+  <script src="app.js?v=4.1.0"></script>
 </body>
 </html>

@@ -2431,25 +2431,129 @@ input:checked + .slider:before {
   color: #fff;
   margin-bottom: 12px;
 }
+.carousel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 0 4px;
+}
+.carousel-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.carousel-source-pill {
+  font-size: 0.68rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+.mal-pill {
+  background: rgba(46, 81, 162, 0.25);
+  color: #60a5fa;
+  border: 1px solid rgba(46, 81, 162, 0.45);
+}
+.anilist-pill {
+  background: rgba(2, 169, 255, 0.2);
+  color: #38bdf8;
+  border: 1px solid rgba(2, 169, 255, 0.45);
+}
+.carousel-nav-arrows {
+  display: flex;
+  gap: 6px;
+}
+.carousel-arrow-btn {
+  background: rgba(30, 41, 59, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #f1f5f9;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1.15rem;
+  line-height: 1;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+}
+.carousel-arrow-btn:hover {
+  background: var(--accent-gradient);
+  color: #fff;
+  border-color: transparent;
+  transform: scale(1.1);
+}
 .horizontal-scroll-list {
   display: flex;
   overflow-x: auto;
-  gap: 16px;
-  padding-bottom: 10px;
+  gap: 14px;
+  padding: 4px 4px 14px 4px;
   scroll-snap-type: x mandatory;
   -webkit-overflow-scrolling: touch;
+  scrollbar-width: thin;
 }
 .horizontal-scroll-list::-webkit-scrollbar {
-  height: 4px;
+  height: 5px;
 }
-.horizontal-scroll-list::-webkit-scrollbar-thumb {
-  background: var(--bg-surface);
+.horizontal-scroll-list::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.5);
   border-radius: 4px;
 }
+.horizontal-scroll-list::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+}
+.horizontal-scroll-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.4);
+}
 .horizontal-scroll-list .anime-card {
-  min-width: 140px;
-  width: 140px;
+  min-width: 145px;
+  width: 145px;
   scroll-snap-align: start;
   flex: 0 0 auto;
+  border-radius: 12px;
+  overflow: hidden;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.25s ease, border-color 0.25s ease;
+}
+.horizontal-scroll-list .anime-card:hover {
+  transform: translateY(-5px) scale(1.02);
+  border-color: rgba(56, 189, 248, 0.4);
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.6), 0 0 16px rgba(56, 189, 248, 0.15);
+}
+.horizontal-scroll-list .anime-card .card-poster-wrap {
+  aspect-ratio: 2/3;
+  width: 100%;
+  position: relative;
+  overflow: hidden;
+}
+.horizontal-scroll-list .anime-card .card-poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.35s ease;
+}
+.horizontal-scroll-list .anime-card:hover .card-poster {
+  transform: scale(1.05);
+}
+.horizontal-scroll-list .anime-card .card-body {
+  padding: 8px 10px 10px;
+}
+.horizontal-scroll-list .anime-card .card-title {
+  font-size: 0.82rem;
+  font-weight: 600;
+  line-height: 1.35;
+  color: #e2e8f0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 2px;
 }
 .chip-hiatus { background: #f59e0b; color: #fff; }
