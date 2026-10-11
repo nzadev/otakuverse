@@ -316,11 +316,11 @@ class LiquidGlassBottomBar @JvmOverloads constructor(
     @Composable
     private fun StandardContent() {
         val isDark = isSystemInDarkTheme()
-        // Semi-transparent pill-shaped background (same as home navbar)
-        val bgColor = if (isDark) Color(0xD9121212) else Color(0xD9F5F5F7)
-        val borderColor = if (isDark) Color.White.copy(alpha = 0.15f) else Color.Black.copy(alpha = 0.05f)
-        val activeColor = if (isDark) Color.White else Color.Black
-        val inactiveColor = Color.Gray
+        // Semi-transparent pill-shaped background (OtakuVerse cyberpunk violet theme)
+        val bgColor = if (isDark) Color(0xD9120E21) else Color(0xD9F5F5F7)
+        val borderColor = if (isDark) Color(0x44A855F7) else Color.Black.copy(alpha = 0.05f)
+        val activeColor = if (isDark) Color(0xFFA855F7) else Color(0xFF7E22CE)
+        val inactiveColor = if (isDark) Color(0xFF8E88A6) else Color.Gray
         val shape = RoundedCornerShape(40.dp) // Pill shape
         
         Box(

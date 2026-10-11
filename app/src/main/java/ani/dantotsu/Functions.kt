@@ -79,6 +79,7 @@ import androidx.core.view.ViewCompat
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import androidx.core.view.doOnAttach
 import androidx.core.view.updateLayoutParams
 import androidx.core.view.updatePadding
 import androidx.fragment.app.DialogFragment
@@ -285,9 +286,25 @@ fun Activity.setNavigationTheme() {
  * When nesting multiple scrolling views, only call this method on the inner most scrolling view.
  */
 fun ViewGroup.setBaseline(navBar: LiquidGlassBottomBar?) {
-    navBar?.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-    clipToPadding = false
-    setPadding(paddingLeft, paddingTop, paddingRight, navBarHeight + (navBar?.measuredHeight ?: 0))
+    fun applyPadding() {
+        val barHeight = try {
+            if (navBar != null && navBar.isAttachedToWindow) {
+                navBar.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+                navBar.measuredHeight
+            } else {
+                navBar?.height ?: 0
+            }
+        } catch (_: Throwable) {
+            navBar?.height ?: 0
+        }
+        clipToPadding = false
+        setPadding(paddingLeft, paddingTop, paddingRight, navBarHeight + barHeight)
+    }
+
+    applyPadding()
+    navBar?.doOnAttach {
+        applyPadding()
+    }
 }
 
 /**
@@ -296,15 +313,40 @@ fun ViewGroup.setBaseline(navBar: LiquidGlassBottomBar?) {
  * When nesting multiple scrolling views, only call this method on the inner most scrolling view.
  */
 fun ViewGroup.setBaseline(navBar: LiquidGlassBottomBar?, overlayView: View) {
-    navBar?.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-    overlayView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
-    clipToPadding = false
-    setPadding(
-        paddingLeft,
-        paddingTop,
-        paddingRight,
-        navBarHeight + (navBar?.measuredHeight ?: 0) + overlayView.measuredHeight
-    )
+    fun applyPadding() {
+        val barHeight = try {
+            if (navBar != null && navBar.isAttachedToWindow) {
+                navBar.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+                navBar.measuredHeight
+            } else {
+                navBar?.height ?: 0
+            }
+        } catch (_: Throwable) {
+            navBar?.height ?: 0
+        }
+        val overlayHeight = try {
+            if (overlayView.isAttachedToWindow) {
+                overlayView.measure(View.MeasureSpec.UNSPECIFIED, View.MeasureSpec.UNSPECIFIED)
+                overlayView.measuredHeight
+            } else {
+                overlayView.height
+            }
+        } catch (_: Throwable) {
+            overlayView.height
+        }
+        clipToPadding = false
+        setPadding(
+            paddingLeft,
+            paddingTop,
+            paddingRight,
+            navBarHeight + barHeight + overlayHeight
+        )
+    }
+
+    applyPadding()
+    navBar?.doOnAttach {
+        applyPadding()
+    }
 }
 
 fun Activity.reloadActivity() {
